@@ -94,9 +94,10 @@ root PID namespace can already see and read every container's processes, so
 needed.
 
 ```bash
-# 1. clone
+# 1. clone + install
 sudo git clone <your-fork-url> /opt/sqreader
 cd /opt/sqreader
+pip install -e .
 
 # 2. configure (gitignored, edit freely)
 cp sqreader.config.example.json sqreader.config.json
