@@ -85,6 +85,54 @@ Output directories are `serve`/`record` flags (`--recordings-dir`, `--stats-db`,
 `--icons-dir`, `--sqmaps-dir`, `--frontend-dir`) and default next to the repo.
 Example systemd units and an nginx reverse-proxy are in [`deploy/`](deploy/).
 
+## Self-hosting behind Docker
+
+If your Squad server runs in Docker (e.g. the `cm2network/squad` image), run
+sqreader itself **natively on the host, not in a container** — Linux's host
+root PID namespace can already see and read every container's processes, so
+`/proc/<pid>/mem` access just works, no extra Docker flags or capabilities
+needed.
+
+```bash
+# 1. clone + install
+sudo git clone <your-fork-url> /opt/sqreader
+cd /opt/sqreader
+pip install -e .
+
+# 2. configure (gitignored, edit freely)
+cp sqreader.config.example.json sqreader.config.json
+```
+
+Edit `sqreader.config.json`:
+
+- `squad_binary_pattern` / `squad_log_glob` → the **host-side** paths the
+  container's volumes are bind-mounted to (not the in-container paths).
+- `squad_port` → only if you run more than one Squad instance on this box
+  (same process name each): set it to this instance's `-Port=`/`PORT` so
+  sqreader doesn't attach to the wrong one. Give each instance its own
+  `server_id` too.
+- Leave `push_enabled: false` / `central_url: null` (the defaults) and never
+  run `sqreader enroll` — that's the entire "no telemetry" story, nothing
+  else to configure. Every outbound call the agent can make is gated behind
+  enrollment credentials that a fresh checkout doesn't have.
+
+```bash
+# 3. install the systemd unit
+sudo cp deploy/sqreader-prod.service /etc/systemd/system/sqreader-prod.service
+sudo sed -i 's|@SQREADER_HOME@|/opt/sqreader|g' /etc/systemd/system/sqreader-prod.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sqreader-prod
+
+# 4. check it's working
+sqreader doctor
+curl 127.0.0.1:8081/
+```
+
+5. Put it behind whatever reverse proxy you already run (nginx, Caddy,
+   Traefik, ...) by proxying to `127.0.0.1:8081` — see
+   [`deploy/nginx_reverse-proxy.example.conf`](deploy/nginx_reverse-proxy.example.conf)
+   for a worked example.
+
 ## What data it collects and where it writes
 
 The reader only observes what the game already holds in memory, and **by
