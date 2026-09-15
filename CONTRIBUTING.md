@@ -7,7 +7,8 @@ Thanks for helping — sqreader is a community tool and issues/PRs are welcome.
 ```bash
 git clone https://github.com/cagrianilokumus/squadreader.git
 cd sqreader
-uv pip install --system --break-system-packages -e ".[dev]"
+uv venv
+uv pip install -e ".[dev]"
 ```
 
 Real data needs a live Squad server on Linux, but the **test suite runs
@@ -18,9 +19,9 @@ anywhere** — it uses fixtures, not a live process.
 Run the same gate CI runs:
 
 ```bash
-python -m pytest           # unit tests
-python -m ruff check .     # lint
-python -m mypy sqreader    # types
+uv run pytest              # unit tests
+uv run ruff check .        # lint
+uv run mypy sqreader       # types
 # only if you touched the web UI:
 cd frontend && npm ci && npm run build
 ```

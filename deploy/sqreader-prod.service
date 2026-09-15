@@ -10,8 +10,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 WorkingDirectory=@SQREADER_HOME@
-Environment=PYTHONPATH=@SQREADER_HOME@/sqreader
-ExecStart=/bin/bash -c 'exec /usr/bin/python3 -m sqreader.cli serve \
+ExecStart=/bin/bash -c 'exec @SQREADER_HOME@/.venv/bin/python -m sqreader.cli serve \
     --pid $(pidof -s SquadGameServer) \
     --host 127.0.0.1 --port 8081 --hz 0.5 \
     --recordings-dir @SQREADER_HOME@/recordings \
@@ -26,7 +25,7 @@ ExecStart=/bin/bash -c 'exec /usr/bin/python3 -m sqreader.cli serve \
 # Their "sustained N ticks" thresholds are scaled to --hz 0.5 (a 2 s tick) —
 # re-scale them if that changes.
 # NOTE: no ExecStartPre=apply-staged-update here on purpose. This unit
-# runs the agent FROM SOURCE (`python3 -m sqreader.cli`), and remote
+# runs the agent FROM SOURCE (`.venv/bin/python -m sqreader.cli`), and remote
 # code updates ship a compiled binary — so the agent skips the update
 # check entirely on this box. It is upgraded by `git checkout` +
 # restart. The packaged unit (packaging/install.sh) has the hook.

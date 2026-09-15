@@ -56,13 +56,14 @@ rather than guessed at.
 ```bash
 git clone https://github.com/cagrianilokumus/squadreader.git
 cd squadreader
-uv pip install --system --break-system-packages -e .
+uv venv
+uv pip install -e .
 
 # one-line summary of the current match (quickest sanity check)
-sudo sqreader summary
+sudo .venv/bin/sqreader summary
 
 # record matches + serve replays/stats (default http://127.0.0.1:8080)
-sudo sqreader serve
+sudo .venv/bin/sqreader serve
 ```
 
 On a standard single-instance box **no configuration is needed** — the Squad
@@ -97,7 +98,8 @@ needed.
 # 1. clone + install
 sudo git clone <your-fork-url> /opt/sqreader
 cd /opt/sqreader
-uv pip install --system --break-system-packages -e .
+uv venv
+uv pip install -e .
 
 # 2. configure (gitignored, edit freely)
 cp sqreader.config.example.json sqreader.config.json
@@ -112,7 +114,7 @@ Edit `sqreader.config.json`:
   sqreader doesn't attach to the wrong one. Give each instance its own
   `server_id` too.
 - Leave `push_enabled: false` / `central_url: null` (the defaults) and never
-  run `sqreader enroll` — that's the entire "no telemetry" story, nothing
+  run `.venv/bin/sqreader enroll` — that's the entire "no telemetry" story, nothing
   else to configure. Every outbound call the agent can make is gated behind
   enrollment credentials that a fresh checkout doesn't have.
 
@@ -124,7 +126,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now sqreader-prod
 
 # 4. check it's working
-sqreader doctor
+.venv/bin/sqreader doctor
 curl 127.0.0.1:8081/
 ```
 
