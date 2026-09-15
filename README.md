@@ -56,7 +56,7 @@ rather than guessed at.
 ```bash
 git clone https://github.com/cagrianilokumus/squadreader.git
 cd squadreader
-uv pip install --system -e .
+uv pip install --system --break-system-packages -e .
 
 # one-line summary of the current match (quickest sanity check)
 sudo sqreader summary
@@ -97,7 +97,7 @@ needed.
 # 1. clone + install
 sudo git clone <your-fork-url> /opt/sqreader
 cd /opt/sqreader
-uv pip install --system -e .
+uv pip install --system --break-system-packages -e .
 
 # 2. configure (gitignored, edit freely)
 cp sqreader.config.example.json sqreader.config.json
