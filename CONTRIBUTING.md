@@ -7,7 +7,7 @@ Thanks for helping — sqreader is a community tool and issues/PRs are welcome.
 ```bash
 git clone https://github.com/cagrianilokumus/squadreader.git
 cd sqreader
-uv pip install -e ".[dev]"
+uv pip install --system -e ".[dev]"
 ```
 
 Real data needs a live Squad server on Linux, but the **test suite runs

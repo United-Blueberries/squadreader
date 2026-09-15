@@ -22,7 +22,7 @@ prohibited; running a game server that happens to use it is fine.
 
 Backend (repo root) — this is the same gate CI (`.github/workflows/ci.yml`) runs:
 ```sh
-uv pip install -e ".[dev]"
+uv pip install --system -e ".[dev]"
 python -m pytest           # unit tests
 python -m ruff check .     # lint
 python -m mypy sqreader    # types
