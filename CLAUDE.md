@@ -22,12 +22,13 @@ prohibited; running a game server that happens to use it is fine.
 
 Backend (repo root) — this is the same gate CI (`.github/workflows/ci.yml`) runs:
 ```sh
-uv pip install --system -e ".[dev]"
-python -m pytest           # unit tests
-python -m ruff check .     # lint
-python -m mypy sqreader    # types
+uv venv                       # once
+uv pip install -e ".[dev]"    # once, or after dependency changes
+uv run pytest                 # unit tests
+uv run ruff check .           # lint
+uv run mypy sqreader          # types
 ```
-Single test: `pytest tests/test_elo.py::test_name` or `pytest tests/test_elo.py -k pattern`.
+Single test: `uv run pytest tests/test_elo.py::test_name` or `uv run pytest tests/test_elo.py -k pattern`.
 
 The test suite runs anywhere (no live Squad server or Linux needed) — `tests/conftest.py`
 provides a `FakeProcessMemory` fixture that mirrors `mem.ProcessMemory`'s read interface without
