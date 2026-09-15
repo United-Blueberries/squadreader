@@ -87,42 +87,50 @@ Example systemd units and an nginx reverse-proxy are in [`deploy/`](deploy/).
 
 ## Self-hosting behind Docker
 
-If your Squad server runs in Docker (e.g. the `cm2network/squad` image), the
-setup is the same as any other box, plus these steps:
+If your Squad server runs in Docker (e.g. the `cm2network/squad` image), run
+sqreader itself **natively on the host, not in a container** — Linux's host
+root PID namespace can already see and read every container's processes, so
+`/proc/<pid>/mem` access just works, no extra Docker flags or capabilities
+needed.
 
-1. **Run sqreader itself natively on the host — not in a container.** Linux's
-   host root PID namespace can see and read every descendant-namespace
-   process, so `/proc/<pid>/mem` access works against a dockerized Squad
-   server with no extra Docker flags, capabilities, or sidecar container —
-   sqreader just needs to run outside whatever container Squad itself is in.
+```bash
+# 1. clone
+sudo git clone <your-fork-url> /opt/sqreader
+cd /opt/sqreader
 
-2. **Point config at the container's host-side paths.** In
-   `sqreader.config.json`, set `squad_binary_pattern`/`squad_log_glob` to
-   wherever the container's volumes are bind-mounted **on the host** — not
-   the path as seen from inside the container.
+# 2. configure (gitignored, edit freely)
+cp sqreader.config.example.json sqreader.config.json
+```
 
-3. **Running more than one Squad instance on the box?** (Same process name on
-   each.) Set `squad_port` to that instance's `-Port=`/`PORT` and give each
-   instance its own `server_id`, log glob, and systemd unit — see the
-   `_multi_instance_comment` in `sqreader.config.example.json`.
+Edit `sqreader.config.json`:
 
-4. **Install it as a systemd service** using the unit in [`deploy/`](deploy/)
-   (`sqreader-prod.service`), so it survives reboots and restarts on crash.
+- `squad_binary_pattern` / `squad_log_glob` → the **host-side** paths the
+  container's volumes are bind-mounted to (not the in-container paths).
+- `squad_port` → only if you run more than one Squad instance on this box
+  (same process name each): set it to this instance's `-Port=`/`PORT` so
+  sqreader doesn't attach to the wrong one. Give each instance its own
+  `server_id` too.
+- Leave `push_enabled: false` / `central_url: null` (the defaults) and never
+  run `sqreader enroll` — that's the entire "no telemetry" story, nothing
+  else to configure. Every outbound call the agent can make is gated behind
+  enrollment credentials that a fresh checkout doesn't have.
 
-5. **Never run `sqreader enroll`.** Every outbound call the agent can make
-   (check-ins, offset self-heal, auto-update) is gated behind enrollment
-   credentials that don't exist unless you create them — a fresh checkout
-   that skips `enroll` makes zero outbound requests. Check anytime with
-   `sqreader enroll --status`.
+```bash
+# 3. install the systemd unit
+sudo cp deploy/sqreader-prod.service /etc/systemd/system/sqreader-prod.service
+sudo sed -i 's|@SQREADER_HOME@|/opt/sqreader|g' /etc/systemd/system/sqreader-prod.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now sqreader-prod
 
-6. **Upgrade via `git pull` + restart, not the installer.** The
-   `curl squadreader.com/install.sh` installer pulls compiled releases from
-   upstream's own update platform; a plain `git checkout` deployment never
-   talks to it.
+# 4. check it's working
+sqreader doctor
+curl 127.0.0.1:8081/
+```
 
-7. **Put it behind whatever reverse proxy you already run** (the example in
-   [`deploy/`](deploy/) is nginx, but any reverse proxy works) by pointing it
-   at the loopback host/port `serve` is bound to.
+5. Put it behind whatever reverse proxy you already run (nginx, Caddy,
+   Traefik, ...) by proxying to `127.0.0.1:8081` — see
+   [`deploy/nginx_reverse-proxy.example.conf`](deploy/nginx_reverse-proxy.example.conf)
+   for a worked example.
 
 ## What data it collects and where it writes
 
