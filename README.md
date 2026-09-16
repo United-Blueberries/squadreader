@@ -96,8 +96,9 @@ needed.
 
 ```bash
 # 1. clone + install
-sudo git clone <your-fork-url> /opt/sqreader
-cd /opt/sqreader
+SQREADER_HOME=/opt/squadreader
+sudo git clone <your-fork-url> "$SQREADER_HOME"
+cd "$SQREADER_HOME"
 uv venv
 uv pip install -e .
 
@@ -119,9 +120,12 @@ Edit `sqreader.config.json`:
   enrollment credentials that a fresh checkout doesn't have.
 
 ```bash
-# 3. install the systemd unit
+# 3. install the systemd unit — run this from inside the directory you
+#    cloned into (the `cp` below fails loudly if you aren't, since it's a
+#    relative path — that's on purpose, so a wrong directory can't produce
+#    a silently-broken unit)
 sudo cp deploy/sqreader-prod.service /etc/systemd/system/sqreader-prod.service
-sudo sed -i 's|@SQREADER_HOME@|/opt/sqreader|g' /etc/systemd/system/sqreader-prod.service
+sudo sed -i "s|@SQREADER_HOME@|$(pwd)|g" /etc/systemd/system/sqreader-prod.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now sqreader-prod
 
@@ -129,6 +133,13 @@ sudo systemctl enable --now sqreader-prod
 .venv/bin/sqreader doctor
 curl 127.0.0.1:8081/
 ```
+
+If `curl` fails and `systemctl status sqreader-prod` shows `status=200/CHDIR`
+(WorkingDirectory doesn't exist) or a `code=exited, status=127` with paths
+missing their `/opt/...` prefix (the `@SQREADER_HOME@` substitution above
+landed empty — e.g. because step 3 was run from the wrong directory), re-run
+the `cp`+`sed` in step 3 from inside the correct directory and
+`sudo systemctl restart sqreader-prod`.
 
 5. Put it behind whatever reverse proxy you already run (nginx, Caddy,
    Traefik, ...) by proxying to `127.0.0.1:8081` — see
