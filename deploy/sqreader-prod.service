@@ -47,4 +47,6 @@ WantedBy=multi-user.target
 
 # NOTE: a drop-in at /etc/systemd/system/sqreader-prod.service.d/*.conf
 # adds CPUQuota=50%, Nice=19, IOSchedulingClass=idle to keep the reader
-# from competing with the game server for CPU/IO.
+# from competing with the game server for CPU/IO. Add AllowedCPUs=4-7
+# to the same drop-in to pin it (and its build-worker child process,
+# via cgroup inheritance) to specific cores.
