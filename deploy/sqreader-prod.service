@@ -10,14 +10,21 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 WorkingDirectory=@SQREADER_HOME@
-ExecStart=/bin/bash -c 'exec @SQREADER_HOME@/.venv/bin/python -m sqreader.cli serve \
-    --pid $(pidof -s SquadGameServer) \
+# No --pid here on purpose: `sqreader.cli serve` resolves its own target PID
+# via config.find_squad_server_pid(), which honors `squad_port` in
+# sqreader.config.json. On a box running more than one SquadGameServer
+# (e.g. a prod + playground instance), `squad_port` MUST be set to this
+# server's -Port= — otherwise the resolver falls back to `pidof -s`, which
+# answers arbitrarily when several are running and can silently attach to
+# the wrong game on any restart. Do not reintroduce `--pid $(pidof ...)`
+# here; that was the bug (it bypassed squad_port entirely).
+ExecStart=@SQREADER_HOME@/.venv/bin/python -m sqreader.cli serve \
     --host 127.0.0.1 --port 8081 --hz 0.5 \
     --recordings-dir @SQREADER_HOME@/recordings \
     --stats-db @SQREADER_HOME@/stats/player_stats.db \
     --icons-dir @SQREADER_HOME@/icons \
     --sqmaps-dir @SQREADER_HOME@/sqmaps \
-    --frontend-dir @SQREADER_HOME@/frontend/dist'
+    --frontend-dir @SQREADER_HOME@/frontend/dist
 # Plugins (anti-cheat) are opt-in. To turn them on, copy
 # deploy/plugins_config.example.json into place and add to the line above:
 #     --plugins-config @SQREADER_HOME@/plugins_config.json
