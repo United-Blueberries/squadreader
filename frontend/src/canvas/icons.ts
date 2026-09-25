@@ -5,6 +5,11 @@ import type { Deployable, Marker, Vehicle } from "../state/types";
 
 interface CachedImage extends HTMLImageElement {
   _bbox?: { x: number; y: number; w: number; h: number } | null;
+  // Set once decode() resolves. `complete && naturalWidth > 0` is not enough:
+  // Firefox can report that before the image is drawable, so the first
+  // drawImage is blank — and the bbox/tint caches below would keep that blank
+  // forever (the "black role icons in Firefox" bug).
+  _ready?: boolean;
 }
 
 const CACHE = new Map<string, CachedImage>();
@@ -14,6 +19,7 @@ export function icon(url: string): CachedImage {
   if (img) return img;
   img = new Image() as CachedImage;
   img.src = url;
+  img.decode().then(() => { img!._ready = true; }, () => {});
   CACHE.set(url, img);
   return img;
 }
@@ -24,7 +30,7 @@ export function icon(url: string): CachedImage {
 // regardless of how the artist padded the source.
 export function iconBbox(img: CachedImage): { x: number; y: number; w: number; h: number } | null {
   if (img._bbox !== undefined) return img._bbox;
-  if (!img.complete || img.naturalWidth === 0) return null;
+  if (!img._ready) return null;
   const W = img.naturalWidth, H = img.naturalHeight;
   const off = document.createElement("canvas");
   off.width = W; off.height = H;
@@ -67,7 +73,7 @@ export function drawIcon(
   x: number, y: number, size: number,
   opts: DrawIconOpts = {},
 ): boolean {
-  if (!img.complete || img.naturalWidth === 0) return false;
+  if (!img._ready) return false;
   const bbox = iconBbox(img);
   ctx.save();
   ctx.translate(x, y);
@@ -106,7 +112,7 @@ export function drawIconCentered(
   x: number, y: number, ppu: number,
   rotate = 0,
 ): boolean {
-  if (!img.complete || img.naturalWidth === 0) return false;
+  if (!img._ready) return false;
   const dw = img.naturalWidth * ppu, dh = img.naturalHeight * ppu;
   ctx.save();
   ctx.translate(x, y);
@@ -116,18 +122,30 @@ export function drawIconCentered(
   return true;
 }
 
+// Freeze an offscreen canvas into a plain PNG-backed Image. Drawing a cached
+// <canvas> onto the map canvas came out blank for some icons on Firefox with
+// GPU canvas (gfx.canvas.accelerated) — the "black role pins" bug — while
+// real images drew fine. Callers get null until it decodes (a frame or two)
+// and fall back to the raw icon meanwhile.
+function bake(c: HTMLCanvasElement): CachedImage {
+  const img = new Image() as CachedImage;
+  img.src = c.toDataURL();
+  img.decode().then(() => { img._ready = true; }, () => {});
+  return img;
+}
+
 // One-shot recolour. Source-in composite over a flat fill rewrites every
 // opaque pixel to `color` while preserving the alpha mask — perfect for
 // turning the stock grey role silhouettes into a high-contrast white glyph
 // against the dark inner of the player marker. Result is cached forever
 // because role art is static.
-const TINT_CACHE = new Map<string, HTMLCanvasElement>();
+const TINT_CACHE = new Map<string, CachedImage>();
 
-export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement | null {
-  if (!img.complete || img.naturalWidth === 0) return null;
+export function tintedIcon(img: CachedImage, color: string): CachedImage | null {
+  if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = TINT_CACHE.get(key);
-  if (hit) return hit;
+  if (hit) return hit._ready ? hit : null;
   const bbox = iconBbox(img);
   if (!bbox) return null;
   const c = document.createElement("canvas");
@@ -138,8 +156,8 @@ export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement |
   oc.globalCompositeOperation = "source-in";
   oc.fillStyle = color;
   oc.fillRect(0, 0, bbox.w, bbox.h);
-  TINT_CACHE.set(key, c);
-  return c;
+  TINT_CACHE.set(key, bake(c));
+  return null;
 }
 
 // Colorized variant — preserves the original icon's light/dark
@@ -148,14 +166,14 @@ export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement |
 // a grey shape becomes a darker shade of it, and inner highlights
 // stay visible. Works well for the Squad command-marker art which
 // ships as white silhouettes with subtle anti-aliased detail.
-const COLORIZE_CACHE = new Map<string, HTMLCanvasElement>();
+const COLORIZE_CACHE = new Map<string, CachedImage>();
 
 export function colorizedIcon(img: CachedImage,
-                              color: string): HTMLCanvasElement | null {
-  if (!img.complete || img.naturalWidth === 0) return null;
+                              color: string): CachedImage | null {
+  if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = COLORIZE_CACHE.get(key);
-  if (hit) return hit;
+  if (hit) return hit._ready ? hit : null;
   const bbox = iconBbox(img);
   if (!bbox) return null;
   const c = document.createElement("canvas");
@@ -174,8 +192,8 @@ export function colorizedIcon(img: CachedImage,
   //    including the alpha=0 corners).
   oc.globalCompositeOperation = "destination-in";
   oc.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, bbox.w, bbox.h);
-  COLORIZE_CACHE.set(key, c);
-  return c;
+  COLORIZE_CACHE.set(key, bake(c));
+  return null;
 }
 
 // ----- resolvers ---------------------------------------------------------
@@ -435,6 +453,15 @@ export function roleIconUrl(p: { roleId: string | null }): string | null {
   if (rid.includes("recruit"))          return base + "T_role_recruit.png";
   if (rid.includes("scout"))            return base + "T_role_scout.png";
   if (rid.includes("rifleman"))         return base + "T_role_rifleman.png";
+  // Roles squad_pools.json knows but that ship no icon of their own —
+  // closest stock art, so the pin isn't left blank.
+  if (rid.includes("sniper") || rid.includes("infiltrator"))
+                                        return base + "T_role_designatedmarksman.png";
+  if (rid.includes("recon"))            return base + "T_role_scout.png";
+  if (rid.includes("breacher"))         return base + "T_role_engineer.png";
+  if (rid.includes("ambusher") || rid.includes("antiair"))
+                                        return base + "T_role_lightantitank.png";
+  if (rid.includes("unarmed"))          return base + "T_role_recruit.png";
   return null;
 }
 
