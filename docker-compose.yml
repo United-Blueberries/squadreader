@@ -46,17 +46,10 @@ services:
       # SquadGame.log on restart, so a single-file bind mount would keep
       # reading the old (now-stale) inode after that happens.
       - ${SQUAD_LOGS:?set SQUAD_LOGS to the game's SquadGame/Saved/Logs dir}:/squad-logs:ro
+    # Every SQREADER_<KEY> in .env reaches the container (see .env.example).
+    env_file: .env
     environment:
-      # Required on any box running more than one Squad server (prod +
-      # playground share the box's PID namespace) — see config.py's
-      # squad_port / find_squad_server_pid.
-      SQREADER_SQUAD_PORT: ${SQREADER_SQUAD_PORT:?set SQREADER_SQUAD_PORT to this instance's Squad -Port=, required on a multi-server box}
-      SQREADER_SERVER_ID: ${SQREADER_SERVER_ID:-squad}
-      # Any other sqreader.config.json key can be set the same way, e.g.:
-      #   SQREADER_ALERT_WEBHOOK: ${SQREADER_ALERT_WEBHOOK}
-      #   SQREADER_PLUGINS_CONFIG: /data/plugins_config.json
-      #   SQREADER_CENTRAL_URL: ${SQREADER_CENTRAL_URL}
-      #   SQREADER_PUSH_ENABLED: ${SQREADER_PUSH_ENABLED:-false}
-      # Note: alert_webhook is a credential — putting it in `environment:`
-      # means it's visible to anyone who can run `docker inspect` on this
-      # container, unlike a config file mounted at 0600.
+      # Re-stated only so compose refuses to start without it: on a box with
+      # more than one Squad server the reader would otherwise attach to an
+      # arbitrary one (see config.find_squad_server_pid).
+      SQREADER_SQUAD_PORT: ${SQREADER_SQUAD_PORT:?set SQREADER_SQUAD_PORT in .env to this server's -Port=}

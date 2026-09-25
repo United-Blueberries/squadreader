@@ -160,29 +160,22 @@ reason, and the install must stay editable (`pip install -e`) —
 `sqreader/squad/metadata.py` locates `data/static` via `__file__`, so a
 site-packages install would silently load empty maps.
 
-Configure via environment variables (`.env` next to the compose file, or
-exported in the shell — compose picks either up):
+Configure everything in `.env` (gitignored; template in
+[`.env.example`](.env.example)):
 
 ```bash
-cat > .env <<EOF
-SQUAD_LOGS=/opt/squad-prod/SquadGame/Saved/Logs
-SQREADER_SQUAD_PORT=7787
-SQREADER_SERVER_ID=squad-prod
-SQREADER_PORT=8081
-EOF
+cp .env.example .env   # fill in SQUAD_LOGS and SQREADER_SQUAD_PORT
 
 docker compose run --rm sqreader doctor
 docker compose up -d
 ```
 
-`SQUAD_LOGS` and `SQREADER_SQUAD_PORT` are required (the compose file fails
-loudly with `:?` if either is unset — the latter because prod and playground
-share one box's PID namespace, and the resolver falls back to `pidof -s`,
-which answers arbitrarily when more than one Squad server is running). Any
-other `sqreader.config.json` key can be set the same way as
-`SQREADER_<KEY>` — see the commented examples in the compose file — but note
-`alert_webhook` in `environment:` is visible via `docker inspect`, unlike a
-config file.
+`SQUAD_LOGS` and `SQREADER_SQUAD_PORT` are required; compose refuses to start
+without them. The port pins the reader to one server: without it the resolver
+falls back to `pidof -s`, which answers arbitrarily when several Squad servers
+run on the box. Any other `sqreader.config.json` key can be added to `.env` as
+`SQREADER_<KEY>`. Note that values there (e.g. `SQREADER_ALERT_WEBHOOK`) are
+visible via `docker inspect`.
 
 **Switching over from an existing systemd install**: the container uses its
 own `sqreader-data/` dir, so it's safe to run next to `sqreader-prod` on a

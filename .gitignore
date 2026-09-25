@@ -2,6 +2,7 @@
 .ssh_config.json
 .env
 .env.*
+!.env.example
 *.pem
 # Per-machine runtime config (copy sqreader.config.example.json). Machine paths.
 sqreader.config.json
