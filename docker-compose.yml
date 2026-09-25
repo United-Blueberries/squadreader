@@ -23,7 +23,6 @@ services:
     network_mode: host
     restart: always
     stop_grace_period: 30s
-    cpus: 0.5
     cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
     build:
       context: .
