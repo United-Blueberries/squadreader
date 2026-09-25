@@ -122,18 +122,30 @@ export function drawIconCentered(
   return true;
 }
 
+// Freeze an offscreen canvas into a plain PNG-backed Image. Drawing a cached
+// <canvas> onto the map canvas came out blank for some icons on Firefox with
+// GPU canvas (gfx.canvas.accelerated) — the "black role pins" bug — while
+// real images drew fine. Callers get null until it decodes (a frame or two)
+// and fall back to the raw icon meanwhile.
+function bake(c: HTMLCanvasElement): CachedImage {
+  const img = new Image() as CachedImage;
+  img.src = c.toDataURL();
+  img.decode().then(() => { img._ready = true; }, () => {});
+  return img;
+}
+
 // One-shot recolour. Source-in composite over a flat fill rewrites every
 // opaque pixel to `color` while preserving the alpha mask — perfect for
 // turning the stock grey role silhouettes into a high-contrast white glyph
 // against the dark inner of the player marker. Result is cached forever
 // because role art is static.
-const TINT_CACHE = new Map<string, HTMLCanvasElement>();
+const TINT_CACHE = new Map<string, CachedImage>();
 
-export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement | null {
+export function tintedIcon(img: CachedImage, color: string): CachedImage | null {
   if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = TINT_CACHE.get(key);
-  if (hit) return hit;
+  if (hit) return hit._ready ? hit : null;
   const bbox = iconBbox(img);
   if (!bbox) return null;
   const c = document.createElement("canvas");
@@ -144,8 +156,8 @@ export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement |
   oc.globalCompositeOperation = "source-in";
   oc.fillStyle = color;
   oc.fillRect(0, 0, bbox.w, bbox.h);
-  TINT_CACHE.set(key, c);
-  return c;
+  TINT_CACHE.set(key, bake(c));
+  return null;
 }
 
 // Colorized variant — preserves the original icon's light/dark
@@ -154,14 +166,14 @@ export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement |
 // a grey shape becomes a darker shade of it, and inner highlights
 // stay visible. Works well for the Squad command-marker art which
 // ships as white silhouettes with subtle anti-aliased detail.
-const COLORIZE_CACHE = new Map<string, HTMLCanvasElement>();
+const COLORIZE_CACHE = new Map<string, CachedImage>();
 
 export function colorizedIcon(img: CachedImage,
-                              color: string): HTMLCanvasElement | null {
+                              color: string): CachedImage | null {
   if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = COLORIZE_CACHE.get(key);
-  if (hit) return hit;
+  if (hit) return hit._ready ? hit : null;
   const bbox = iconBbox(img);
   if (!bbox) return null;
   const c = document.createElement("canvas");
@@ -180,8 +192,8 @@ export function colorizedIcon(img: CachedImage,
   //    including the alpha=0 corners).
   oc.globalCompositeOperation = "destination-in";
   oc.drawImage(img, bbox.x, bbox.y, bbox.w, bbox.h, 0, 0, bbox.w, bbox.h);
-  COLORIZE_CACHE.set(key, c);
-  return c;
+  COLORIZE_CACHE.set(key, bake(c));
+  return null;
 }
 
 // ----- resolvers ---------------------------------------------------------
