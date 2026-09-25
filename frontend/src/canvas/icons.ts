@@ -5,6 +5,11 @@ import type { Deployable, Marker, Vehicle } from "../state/types";
 
 interface CachedImage extends HTMLImageElement {
   _bbox?: { x: number; y: number; w: number; h: number } | null;
+  // Set once decode() resolves. `complete && naturalWidth > 0` is not enough:
+  // Firefox can report that before the image is drawable, so the first
+  // drawImage is blank — and the bbox/tint caches below would keep that blank
+  // forever (the "black role icons in Firefox" bug).
+  _ready?: boolean;
 }
 
 const CACHE = new Map<string, CachedImage>();
@@ -14,6 +19,7 @@ export function icon(url: string): CachedImage {
   if (img) return img;
   img = new Image() as CachedImage;
   img.src = url;
+  img.decode().then(() => { img!._ready = true; }, () => {});
   CACHE.set(url, img);
   return img;
 }
@@ -24,7 +30,7 @@ export function icon(url: string): CachedImage {
 // regardless of how the artist padded the source.
 export function iconBbox(img: CachedImage): { x: number; y: number; w: number; h: number } | null {
   if (img._bbox !== undefined) return img._bbox;
-  if (!img.complete || img.naturalWidth === 0) return null;
+  if (!img._ready) return null;
   const W = img.naturalWidth, H = img.naturalHeight;
   const off = document.createElement("canvas");
   off.width = W; off.height = H;
@@ -67,7 +73,7 @@ export function drawIcon(
   x: number, y: number, size: number,
   opts: DrawIconOpts = {},
 ): boolean {
-  if (!img.complete || img.naturalWidth === 0) return false;
+  if (!img._ready) return false;
   const bbox = iconBbox(img);
   ctx.save();
   ctx.translate(x, y);
@@ -106,7 +112,7 @@ export function drawIconCentered(
   x: number, y: number, ppu: number,
   rotate = 0,
 ): boolean {
-  if (!img.complete || img.naturalWidth === 0) return false;
+  if (!img._ready) return false;
   const dw = img.naturalWidth * ppu, dh = img.naturalHeight * ppu;
   ctx.save();
   ctx.translate(x, y);
@@ -124,7 +130,7 @@ export function drawIconCentered(
 const TINT_CACHE = new Map<string, HTMLCanvasElement>();
 
 export function tintedIcon(img: CachedImage, color: string): HTMLCanvasElement | null {
-  if (!img.complete || img.naturalWidth === 0) return null;
+  if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = TINT_CACHE.get(key);
   if (hit) return hit;
@@ -152,7 +158,7 @@ const COLORIZE_CACHE = new Map<string, HTMLCanvasElement>();
 
 export function colorizedIcon(img: CachedImage,
                               color: string): HTMLCanvasElement | null {
-  if (!img.complete || img.naturalWidth === 0) return null;
+  if (!img._ready) return null;
   const key = img.src + "|" + color;
   const hit = COLORIZE_CACHE.get(key);
   if (hit) return hit;
@@ -435,6 +441,15 @@ export function roleIconUrl(p: { roleId: string | null }): string | null {
   if (rid.includes("recruit"))          return base + "T_role_recruit.png";
   if (rid.includes("scout"))            return base + "T_role_scout.png";
   if (rid.includes("rifleman"))         return base + "T_role_rifleman.png";
+  // Roles squad_pools.json knows but that ship no icon of their own —
+  // closest stock art, so the pin isn't left blank.
+  if (rid.includes("sniper") || rid.includes("infiltrator"))
+                                        return base + "T_role_designatedmarksman.png";
+  if (rid.includes("recon"))            return base + "T_role_scout.png";
+  if (rid.includes("breacher"))         return base + "T_role_engineer.png";
+  if (rid.includes("ambusher") || rid.includes("antiair"))
+                                        return base + "T_role_lightantitank.png";
+  if (rid.includes("unarmed"))          return base + "T_role_recruit.png";
   return null;
 }
 
