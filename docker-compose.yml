@@ -44,7 +44,7 @@ services:
       # Mount the LOG DIR, not the log file itself: Squad rotates/recreates
       # SquadGame.log on restart, so a single-file bind mount would keep
       # reading the old (now-stale) inode after that happens.
-      - ${SQUAD_LOGS:?set SQUAD_LOGS to the game's SquadGame/Saved/Logs dir}:/squad-logs:ro
+      - ${SQUAD_LOGS:?e.g. /path/to/squad/SquadGame/Saved/Logs}:/squad-logs:ro
     # Every SQREADER_<KEY> in .env reaches the container (see .env.example).
     env_file: .env
     environment:
