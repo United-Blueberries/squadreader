@@ -1,7 +1,6 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim-bookworm
-
-COPY --from=ghcr.io/astral-sh/uv:0.8 /uv /bin/uv
+# uv's own image: python:3.12-slim-bookworm with uv preinstalled.
+FROM ghcr.io/astral-sh/uv:0.8-python3.12-bookworm-slim
 
 # procps: sqreader/config.py's PID resolver shells out to pidof/pgrep to find
 # the game server process (see squad_port / find_squad_server_pid).
