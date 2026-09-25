@@ -29,5 +29,5 @@ WORKDIR /data
 # Exec form so python is PID 1 and receives SIGTERM directly (needed to
 # finalize the in-progress .sqrx footer on shutdown, instead of a shell
 # swallowing the signal). No CMD: the `serve` flags live in
-# deploy/docker-compose.example.yml, next to the mounts they depend on.
+# docker-compose.yml, next to the mounts they depend on.
 ENTRYPOINT ["python", "-m", "sqreader.cli"]

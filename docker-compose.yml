@@ -1,9 +1,8 @@
-# Example compose file for running sqreader in Docker. Copy to
-# docker-compose.yml and adjust before use — see the "Docker" section in the
-# README. Variables come from a `.env` file next to this one (read
-# automatically) or from the shell.
+# sqreader in Docker — see the "Docker" section in the README. Configured
+# entirely through variables from `.env` next to this file or the shell.
 #
-#   docker compose -f deploy/docker-compose.example.yml run --rm sqreader doctor
+#   docker compose run --rm sqreader doctor
+#   docker compose up -d
 #
 services:
   sqreader:
@@ -27,7 +26,7 @@ services:
     cpus: 0.5
     cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
     build:
-      context: ..
+      context: .
     command:
       - serve
       - --host=127.0.0.1
@@ -40,10 +39,9 @@ services:
       - --frontend-dir=/app/frontend/dist
       - --squad-log=/squad-logs/SquadGame.log
     volumes:
-      # Own data dir — a fresh install, does NOT reuse an existing systemd
-      # install's directory. See the README's "Docker" section for switching
-      # over from systemd.
-      - ./data:/data
+      # Own data dir, fresh — does not reuse the systemd install's. Not ./data:
+      # that is the static metadata baked into the image.
+      - ./sqreader-data:/data
       # Mount the LOG DIR, not the log file itself: Squad rotates/recreates
       # SquadGame.log on restart, so a single-file bind mount would keep
       # reading the old (now-stale) inode after that happens.

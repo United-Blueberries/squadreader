@@ -73,3 +73,6 @@ build/
 # filenames. The result installs as a blank page. Re-include it explicitly.
 !frontend/dist/
 !frontend/dist/**
+
+# Docker data dir (docker-compose.yml)
+sqreader-data/

@@ -152,7 +152,7 @@ the `cp`+`sed` in step 3 from inside the correct directory and
 ## Docker
 
 sqreader can also run *in* a container, using
-[`deploy/docker-compose.example.yml`](deploy/docker-compose.example.yml). This
+[`docker-compose.yml`](docker-compose.yml). This
 needs more than `docker run` because `/proc/<pid>/mem` access requires
 `pid: host` plus `CAP_SYS_PTRACE`/`CAP_DAC_READ_SEARCH` (see the compose
 file's comments for why), apparmor may need to be relaxed for the same
@@ -164,16 +164,15 @@ Configure via environment variables (`.env` next to the compose file, or
 exported in the shell — compose picks either up):
 
 ```bash
-cp deploy/docker-compose.example.yml deploy/docker-compose.yml
-cat > deploy/.env <<EOF
+cat > .env <<EOF
 SQUAD_LOGS=/opt/squad-prod/SquadGame/Saved/Logs
 SQREADER_SQUAD_PORT=7787
 SQREADER_SERVER_ID=squad-prod
 SQREADER_PORT=8081
 EOF
 
-docker compose -f deploy/docker-compose.yml run --rm sqreader doctor
-docker compose -f deploy/docker-compose.yml up -d
+docker compose run --rm sqreader doctor
+docker compose up -d
 ```
 
 `SQUAD_LOGS` and `SQREADER_SQUAD_PORT` are required (the compose file fails
@@ -186,22 +185,22 @@ other `sqreader.config.json` key can be set the same way as
 config file.
 
 **Switching over from an existing systemd install**: the container uses its
-own `deploy/data` dir, so it's safe to run next to `sqreader-prod` on a
+own `sqreader-data/` dir, so it's safe to run next to `sqreader-prod` on a
 different port first (`SQREADER_PORT=8082`) to try it out. Once satisfied:
 
 ```bash
 sudo systemctl disable --now sqreader-prod
-# set SQREADER_PORT back to 8081 (or drop it — that's the default) in deploy/.env
-docker compose -f deploy/docker-compose.yml up -d
+# set SQREADER_PORT back to 8081 (or drop it — that's the default) in .env
+docker compose up -d
 ```
 
-Rollback: `docker compose -f deploy/docker-compose.yml stop` and
+Rollback: `docker compose stop` and
 `sudo systemctl enable --now sqreader-prod`.
 
 Retention (`deploy/sqreader-retention.service`/`.timer`) points at the
 systemd install's directory by default — repoint it at
-`deploy/data/recordings`, or replace it with a timer that runs
-`docker compose -f deploy/docker-compose.yml run --rm sqreader retention --recordings-dir /data/recordings ...`.
+`sqreader-data/recordings`, or replace it with a timer that runs
+`docker compose run --rm sqreader retention --recordings-dir /data/recordings ...`.
 
 ## What data it collects and where it writes
 
