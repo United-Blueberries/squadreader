@@ -146,6 +146,53 @@ the `cp`+`sed` in step 3 from inside the correct directory and
    [`deploy/nginx_reverse-proxy.example.conf`](deploy/nginx_reverse-proxy.example.conf)
    for a worked example.
 
+## Docker
+
+sqreader itself can also run *in* a container next to the systemd install
+above, using [`deploy/docker-compose.example.yml`](deploy/docker-compose.example.yml).
+This needs more than `docker run` because `/proc/<pid>/mem` access requires
+`pid: host` plus `CAP_SYS_PTRACE`/`CAP_DAC_READ_SEARCH` (see the compose
+file's comments), and the install must stay editable (`pip install -e`) —
+`sqreader/squad/metadata.py` locates `data/static` via `__file__`, so a
+site-packages install silently loads empty maps.
+
+**Shadow, then cut over** — don't replace the running systemd unit outright:
+
+```bash
+# 1. shadow: build + run a second instance on :8082, config'd with its own
+#    squad_port, no plugins/alerts/push (see compose file comments)
+cp deploy/docker-compose.example.yml deploy/docker-compose.yml
+mkdir -p deploy/data-shadow
+cp sqreader.config.json deploy/data-shadow/sqreader.config.json  # edit squad_port
+docker compose -f deploy/docker-compose.yml run --rm sqreader-shadow doctor
+docker compose -f deploy/docker-compose.yml up -d sqreader-shadow
+
+# 2. verify against the systemd instance over one full match:
+#    - .sqrx recordings in data-shadow/recordings match the systemd ones
+#    - kill feed events are present (see below if missing)
+#    - the viewer loads at :8082 same as :8081
+
+# 3. cutover
+sudo systemctl disable --now sqreader-prod
+SQREADER_HOME=/opt/squadreader docker compose -f deploy/docker-compose.yml \
+    --profile cutover up -d sqreader
+docker compose -f deploy/docker-compose.yml rm -sf sqreader-shadow
+
+# rollback if anything's wrong:
+docker compose -f deploy/docker-compose.yml stop sqreader
+sudo systemctl enable --now sqreader-prod
+# the container runs as root, so files it wrote (recordings/, stats/) may
+# need: sudo chown -R <systemd-service-user> /opt/squadreader/{recordings,stats}
+```
+
+Retention stays on the host (`deploy/sqreader-retention.service`/`.timer`) —
+the recordings dir is the same host path either way, container or systemd.
+
+The game's `SquadGame.log` (kill feed) is found through `/proc/<pid>/root/...`,
+so no log mount is needed. If the kill feed is still missing, bind-mount the
+game's `SquadGame/Saved/Logs` read-only into the container and pass
+`--squad-log=/path/in/container/SquadGame.log`.
+
 ## What data it collects and where it writes
 
 The reader only observes what the game already holds in memory, and **by

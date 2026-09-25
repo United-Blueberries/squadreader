@@ -1,0 +1,63 @@
+# Example compose file for running sqreader in Docker next to a systemd
+# install, for a shadow-then-cutover migration. Copy to docker-compose.yml
+# and adjust before use — see the "Docker" section in the README.
+#
+#   docker compose -f deploy/docker-compose.example.yml \
+#       run --rm sqreader-shadow doctor
+#
+x-common: &common
+  pid: host  # needed to see the game container's PID from the host namespace
+  cap_drop: [ALL]
+  cap_add:
+    # SYS_PTRACE: /proc/<pid>/mem open + reads are ptrace-gated.
+    # DAC_READ_SEARCH: the game runs as the steam uid and its mem file is
+    # 0600, so plain file permissions aren't enough even for root.
+    - SYS_PTRACE
+    - DAC_READ_SEARCH
+  security_opt:
+    # Try removing this first: since the game container is also docker-default,
+    # the default apparmor profile may already allow ptrace between peers.
+    - apparmor:unconfined
+  read_only: true
+  tmpfs: [/tmp]
+  network_mode: host
+  restart: always
+  stop_grace_period: 30s
+  cpus: 0.5
+  cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
+
+services:
+  sqreader-shadow:
+    <<: *common
+    build:
+      context: ..
+    command:
+      - serve
+      - --host=127.0.0.1
+      - --port=8082
+      - --hz=0.5
+      - --recordings-dir=/data/recordings
+      - --stats-db=/data/stats/player_stats.db
+      - --icons-dir=/app/icons
+      - --sqmaps-dir=/app/sqmaps
+      - --frontend-dir=/app/frontend/dist
+    volumes:
+      - ./data-shadow:/data
+    # data-shadow/sqreader.config.json MUST set squad_port (there are now two
+    # readers attaching to the same box) and must NOT enable plugins,
+    # alert_webhook, or push — those would duplicate Discord alerts and
+    # duplicate matches on any central platform the prod instance pushes to.
+
+  sqreader:
+    <<: *common
+    build:
+      context: ..
+    profiles: [cutover]  # not started by `up -d` alone; systemd owns :8081 until cutover
+    volumes:
+      # Same directory the systemd unit uses (@SQREADER_HOME@), so
+      # recordings/, stats/, and sqreader.config.json carry over unchanged.
+      # The default CMD paths (/data/recordings, /data/stats/...) line up
+      # with $SQREADER_HOME/recordings and $SQREADER_HOME/stats.
+      # .env.agent (push credentials) lives next to the config, so it's
+      # picked up too if central push is enabled.
+      - ${SQREADER_HOME:?set SQREADER_HOME to the existing sqreader-prod install dir}:/data
