@@ -3,7 +3,7 @@ frontend/node_modules
 frontend/src
 recordings
 stats
-data-shadow
+deploy/data
 .git
 tests
 *.log

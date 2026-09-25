@@ -72,8 +72,11 @@ server is auto-detected by its process name.
 ## Configuration
 
 Copy `sqreader.config.example.json` to `sqreader.config.json` (gitignored) and
-edit only what your box needs. Resolution order is **CLI flag > config file >
-built-in default**, so every value can also be passed on the command line.
+edit only what your box needs. Resolution order is **CLI flag > env var >
+config file > built-in default**, so every value can also be passed on the
+command line, or set as an `SQREADER_<KEY>` environment variable (e.g.
+`SQREADER_SQUAD_PORT=7787`) — handy in Docker, where editing a mounted config
+file per-deployment is more friction than an env var.
 
 | Key | Default | Meaning |
 |-----|---------|---------|
@@ -148,50 +151,57 @@ the `cp`+`sed` in step 3 from inside the correct directory and
 
 ## Docker
 
-sqreader itself can also run *in* a container next to the systemd install
-above, using [`deploy/docker-compose.example.yml`](deploy/docker-compose.example.yml).
-This needs more than `docker run` because `/proc/<pid>/mem` access requires
+sqreader can also run *in* a container, using
+[`deploy/docker-compose.example.yml`](deploy/docker-compose.example.yml). This
+needs more than `docker run` because `/proc/<pid>/mem` access requires
 `pid: host` plus `CAP_SYS_PTRACE`/`CAP_DAC_READ_SEARCH` (see the compose
-file's comments), and the install must stay editable (`pip install -e`) —
+file's comments for why), apparmor may need to be relaxed for the same
+reason, and the install must stay editable (`pip install -e`) —
 `sqreader/squad/metadata.py` locates `data/static` via `__file__`, so a
-site-packages install silently loads empty maps.
+site-packages install would silently load empty maps.
 
-**Shadow, then cut over** — don't replace the running systemd unit outright:
+Configure via environment variables (`.env` next to the compose file, or
+exported in the shell — compose picks either up):
 
 ```bash
-# 1. shadow: build + run a second instance on :8082, config'd with its own
-#    squad_port, no plugins/alerts/push (see compose file comments)
 cp deploy/docker-compose.example.yml deploy/docker-compose.yml
-mkdir -p deploy/data-shadow
-cp sqreader.config.json deploy/data-shadow/sqreader.config.json  # edit squad_port
-docker compose -f deploy/docker-compose.yml run --rm sqreader-shadow doctor
-docker compose -f deploy/docker-compose.yml up -d sqreader-shadow
+cat > deploy/.env <<EOF
+SQUAD_LOGS=/opt/squad-prod/SquadGame/Saved/Logs
+SQREADER_SQUAD_PORT=7787
+SQREADER_SERVER_ID=squad-prod
+SQREADER_PORT=8081
+EOF
 
-# 2. verify against the systemd instance over one full match:
-#    - .sqrx recordings in data-shadow/recordings match the systemd ones
-#    - kill feed events are present (see below if missing)
-#    - the viewer loads at :8082 same as :8081
-
-# 3. cutover
-sudo systemctl disable --now sqreader-prod
-SQREADER_HOME=/opt/squadreader docker compose -f deploy/docker-compose.yml \
-    --profile cutover up -d sqreader
-docker compose -f deploy/docker-compose.yml rm -sf sqreader-shadow
-
-# rollback if anything's wrong:
-docker compose -f deploy/docker-compose.yml stop sqreader
-sudo systemctl enable --now sqreader-prod
-# the container runs as root, so files it wrote (recordings/, stats/) may
-# need: sudo chown -R <systemd-service-user> /opt/squadreader/{recordings,stats}
+docker compose -f deploy/docker-compose.yml run --rm sqreader doctor
+docker compose -f deploy/docker-compose.yml up -d
 ```
 
-Retention stays on the host (`deploy/sqreader-retention.service`/`.timer`) —
-the recordings dir is the same host path either way, container or systemd.
+`SQUAD_LOGS` and `SQREADER_SQUAD_PORT` are required (the compose file fails
+loudly with `:?` if either is unset — the latter because prod and playground
+share one box's PID namespace, and the resolver falls back to `pidof -s`,
+which answers arbitrarily when more than one Squad server is running). Any
+other `sqreader.config.json` key can be set the same way as
+`SQREADER_<KEY>` — see the commented examples in the compose file — but note
+`alert_webhook` in `environment:` is visible via `docker inspect`, unlike a
+config file.
 
-The game's `SquadGame.log` (kill feed) is found through `/proc/<pid>/root/...`,
-so no log mount is needed. If the kill feed is still missing, bind-mount the
-game's `SquadGame/Saved/Logs` read-only into the container and pass
-`--squad-log=/path/in/container/SquadGame.log`.
+**Switching over from an existing systemd install**: the container uses its
+own `deploy/data` dir, so it's safe to run next to `sqreader-prod` on a
+different port first (`SQREADER_PORT=8082`) to try it out. Once satisfied:
+
+```bash
+sudo systemctl disable --now sqreader-prod
+# set SQREADER_PORT back to 8081 (or drop it — that's the default) in deploy/.env
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+Rollback: `docker compose -f deploy/docker-compose.yml stop` and
+`sudo systemctl enable --now sqreader-prod`.
+
+Retention (`deploy/sqreader-retention.service`/`.timer`) points at the
+systemd install's directory by default — repoint it at
+`deploy/data/recordings`, or replace it with a timer that runs
+`docker compose -f deploy/docker-compose.yml run --rm sqreader retention --recordings-dir /data/recordings ...`.
 
 ## What data it collects and where it writes
 

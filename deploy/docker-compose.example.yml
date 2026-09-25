@@ -1,63 +1,64 @@
-# Example compose file for running sqreader in Docker next to a systemd
-# install, for a shadow-then-cutover migration. Copy to docker-compose.yml
-# and adjust before use — see the "Docker" section in the README.
+# Example compose file for running sqreader in Docker. Copy to
+# docker-compose.yml and adjust before use — see the "Docker" section in the
+# README. Variables come from a `.env` file next to this one (read
+# automatically) or from the shell.
 #
-#   docker compose -f deploy/docker-compose.example.yml \
-#       run --rm sqreader-shadow doctor
+#   docker compose -f deploy/docker-compose.example.yml run --rm sqreader doctor
 #
-x-common: &common
-  pid: host  # needed to see the game container's PID from the host namespace
-  cap_drop: [ALL]
-  cap_add:
-    # SYS_PTRACE: /proc/<pid>/mem open + reads are ptrace-gated.
-    # DAC_READ_SEARCH: the game runs as the steam uid and its mem file is
-    # 0600, so plain file permissions aren't enough even for root.
-    - SYS_PTRACE
-    - DAC_READ_SEARCH
-  security_opt:
-    # Try removing this first: since the game container is also docker-default,
-    # the default apparmor profile may already allow ptrace between peers.
-    - apparmor:unconfined
-  read_only: true
-  tmpfs: [/tmp]
-  network_mode: host
-  restart: always
-  stop_grace_period: 30s
-  cpus: 0.5
-  cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
-
 services:
-  sqreader-shadow:
-    <<: *common
+  sqreader:
+    pid: host  # needed to see the game container's PID from the host namespace
+    cap_drop: [ALL]
+    cap_add:
+      # SYS_PTRACE: /proc/<pid>/mem open + reads are ptrace-gated.
+      # DAC_READ_SEARCH: the game runs as the steam uid and its mem file is
+      # 0600, so plain file permissions aren't enough even for root.
+      - SYS_PTRACE
+      - DAC_READ_SEARCH
+    security_opt:
+      # Try removing this first: since the game container is also docker-default,
+      # the default apparmor profile may already allow ptrace between peers.
+      - apparmor:unconfined
+    read_only: true
+    tmpfs: [/tmp]
+    network_mode: host
+    restart: always
+    stop_grace_period: 30s
+    cpus: 0.5
+    cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
     build:
       context: ..
     command:
       - serve
       - --host=127.0.0.1
-      - --port=8082
+      - --port=${SQREADER_PORT:-8081}
       - --hz=0.5
       - --recordings-dir=/data/recordings
       - --stats-db=/data/stats/player_stats.db
       - --icons-dir=/app/icons
       - --sqmaps-dir=/app/sqmaps
       - --frontend-dir=/app/frontend/dist
+      - --squad-log=/squad-logs/SquadGame.log
     volumes:
-      - ./data-shadow:/data
-    # data-shadow/sqreader.config.json MUST set squad_port (there are now two
-    # readers attaching to the same box) and must NOT enable plugins,
-    # alert_webhook, or push — those would duplicate Discord alerts and
-    # duplicate matches on any central platform the prod instance pushes to.
-
-  sqreader:
-    <<: *common
-    build:
-      context: ..
-    profiles: [cutover]  # not started by `up -d` alone; systemd owns :8081 until cutover
-    volumes:
-      # Same directory the systemd unit uses (@SQREADER_HOME@), so
-      # recordings/, stats/, and sqreader.config.json carry over unchanged.
-      # The default CMD paths (/data/recordings, /data/stats/...) line up
-      # with $SQREADER_HOME/recordings and $SQREADER_HOME/stats.
-      # .env.agent (push credentials) lives next to the config, so it's
-      # picked up too if central push is enabled.
-      - ${SQREADER_HOME:?set SQREADER_HOME to the existing sqreader-prod install dir}:/data
+      # Own data dir — a fresh install, does NOT reuse an existing systemd
+      # install's directory. See the README's "Docker" section for switching
+      # over from systemd.
+      - ./data:/data
+      # Mount the LOG DIR, not the log file itself: Squad rotates/recreates
+      # SquadGame.log on restart, so a single-file bind mount would keep
+      # reading the old (now-stale) inode after that happens.
+      - ${SQUAD_LOGS:?set SQUAD_LOGS to the game's SquadGame/Saved/Logs dir}:/squad-logs:ro
+    environment:
+      # Required on any box running more than one Squad server (prod +
+      # playground share the box's PID namespace) — see config.py's
+      # squad_port / find_squad_server_pid.
+      SQREADER_SQUAD_PORT: ${SQREADER_SQUAD_PORT:?set SQREADER_SQUAD_PORT to this instance's Squad -Port=, required on a multi-server box}
+      SQREADER_SERVER_ID: ${SQREADER_SERVER_ID:-squad}
+      # Any other sqreader.config.json key can be set the same way, e.g.:
+      #   SQREADER_ALERT_WEBHOOK: ${SQREADER_ALERT_WEBHOOK}
+      #   SQREADER_PLUGINS_CONFIG: /data/plugins_config.json
+      #   SQREADER_CENTRAL_URL: ${SQREADER_CENTRAL_URL}
+      #   SQREADER_PUSH_ENABLED: ${SQREADER_PUSH_ENABLED:-false}
+      # Note: alert_webhook is a credential — putting it in `environment:`
+      # means it's visible to anyone who can run `docker inspect` on this
+      # container, unlike a config file mounted at 0600.
