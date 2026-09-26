@@ -12,8 +12,8 @@ function fmtDate(s: string | null): string {
   if (!s) return "—";
   const d = new Date(s);
   if (isNaN(+d)) return "—";
-  return d.toLocaleDateString("de-DE", { day: "2-digit", month: "short" }) +
-    " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short" }) +
+    " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 function fmtDur(sec: number | null): string {
   if (!sec || sec <= 0) return "—";
