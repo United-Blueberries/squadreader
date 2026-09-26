@@ -177,8 +177,8 @@ run on the box. Any other `sqreader.config.json` key can be added to `.env` as
 `SQREADER_<KEY>`. Note that values there (e.g. `SQREADER_ALERT_WEBHOOK`) are
 visible via `docker inspect`.
 
-Box-specific compose changes (joining a reverse proxy's network, extra
-mounts, …) go in `docker-compose.override.yml` (gitignored), which compose
+Box-specific compose changes (joining a reverse proxy's network, CPU pinning
+via `cpuset` away from the game server's cores, extra mounts, …) go in `docker-compose.override.yml` (gitignored), which compose
 merges automatically. E.g. to let a proxy container reach `sqreader:8081`:
 
 ```yaml

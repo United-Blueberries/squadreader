@@ -24,7 +24,6 @@ services:
       - "127.0.0.1:${SQREADER_PORT:-8081}:8081"
     restart: always
     stop_grace_period: 30s
-    cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
     build: .
     image: sqreader:local
     pull_policy: build  # local image; never try Docker Hub
