@@ -25,7 +25,7 @@ const vehicleName = (cls: string | null) =>
   cls ? vehicleDisplayName(cls) : "?";
 
 const kd = (k: number, d: number) => (k / Math.max(1, d)).toFixed(2);
-const int = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("tr-TR"));
+const int = (n: number | null | undefined) => (n == null ? "—" : Math.round(n).toLocaleString("de-DE"));
 // Nulls stay nulls: a weapon with no positioned kill has no known range, and an
 // em-dash says that. Printing 0 m would be a fact we do not have.
 const metres = (m: number | null | undefined) =>
