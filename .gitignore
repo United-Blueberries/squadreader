@@ -77,3 +77,4 @@ build/
 
 # Docker data dir (docker-compose.yml)
 sqreader-data/
+docker-compose.override.yml

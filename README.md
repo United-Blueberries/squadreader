@@ -177,6 +177,19 @@ run on the box. Any other `sqreader.config.json` key can be added to `.env` as
 `SQREADER_<KEY>`. Note that values there (e.g. `SQREADER_ALERT_WEBHOOK`) are
 visible via `docker inspect`.
 
+Box-specific compose changes (joining a reverse proxy's network, extra
+mounts, …) go in `docker-compose.override.yml` (gitignored), which compose
+merges automatically. E.g. to let a proxy container reach `sqreader:8081`:
+
+```yaml
+services:
+  sqreader:
+    networks: [default, edge]
+networks:
+  edge:
+    external: true
+```
+
 **Switching over from an existing systemd install**: the container uses its
 own `sqreader-data/` dir, so it's safe to run next to `sqreader-prod` on a
 different port first (`SQREADER_PORT=8082`) to try it out. Once satisfied:
