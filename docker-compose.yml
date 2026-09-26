@@ -20,7 +20,8 @@ services:
       - apparmor:unconfined
     read_only: true
     tmpfs: [/tmp]
-    network_mode: host
+    ports:
+      - "127.0.0.1:${SQREADER_PORT:-8081}:8081"
     restart: always
     stop_grace_period: 30s
     cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
@@ -28,8 +29,8 @@ services:
       context: .
     command:
       - serve
-      - --host=127.0.0.1
-      - --port=${SQREADER_PORT:-8081}
+      - --host=0.0.0.0  # inside the container; `ports` keeps it loopback-only on the host
+      - --port=8081
       - --hz=0.5
       - --recordings-dir=/data/recordings
       - --stats-db=/data/stats/player_stats.db
