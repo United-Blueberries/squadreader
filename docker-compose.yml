@@ -72,6 +72,7 @@ services:
       - sh
       - -c
       - >-
+        mkdir -p /data/recordings;
         while :; do
         python -m sqreader.cli retention --recordings-dir /data/recordings
         --max-age-days 90 --max-total-gb 150 --min-free-gb 50;
