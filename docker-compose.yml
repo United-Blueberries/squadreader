@@ -1,0 +1,79 @@
+# sqreader in Docker — see the "Docker" section in the README. Configured
+# entirely through variables from `.env` next to this file or the shell.
+#
+#   docker compose run --rm sqreader doctor
+#   docker compose up -d
+#
+services:
+  sqreader:
+    pid: host  # needed to see the game container's PID from the host namespace
+    cap_drop: [ALL]
+    cap_add:
+      # SYS_PTRACE: /proc/<pid>/mem open + reads are ptrace-gated.
+      # DAC_READ_SEARCH: the game runs as the steam uid and its mem file is
+      # 0600, so plain file permissions aren't enough even for root.
+      - SYS_PTRACE
+      - DAC_READ_SEARCH
+    security_opt:
+      # Try removing this first: since the game container is also docker-default,
+      # the default apparmor profile may already allow ptrace between peers.
+      - apparmor:unconfined
+    read_only: true
+    tmpfs: [/tmp]
+    ports:
+      - "127.0.0.1:${SQREADER_PORT:-8081}:8081"
+    restart: always
+    stop_grace_period: 30s
+    build: .
+    image: sqreader:local
+    pull_policy: build  # local image; never try Docker Hub
+    command:
+      - serve
+      - --host=0.0.0.0  # inside the container; `ports` keeps it loopback-only on the host
+      - --port=8081
+      - --hz=0.5
+      - --recordings-dir=/data/recordings
+      - --stats-db=/data/stats/player_stats.db
+      - --icons-dir=/app/icons
+      - --sqmaps-dir=/app/sqmaps
+      - --frontend-dir=/app/frontend/dist
+      - --squad-log=/squad-logs/SquadGame.log
+    volumes:
+      # Own data dir, fresh — does not reuse the systemd install's. Not ./data:
+      # that is the static metadata baked into the image.
+      - ./sqreader-data:/data
+      # Mount the LOG DIR, not the log file itself: Squad rotates/recreates
+      # SquadGame.log on restart, so a single-file bind mount would keep
+      # reading the old (now-stale) inode after that happens.
+      - ${SQUAD_LOGS:?e.g. /path/to/squad/SquadGame/Saved/Logs}:/squad-logs:ro
+    # Every SQREADER_<KEY> in .env reaches the container (see .env.example).
+    env_file: .env
+    environment:
+      # Re-stated only so compose refuses to start without it: on a box with
+      # more than one Squad server the reader would otherwise attach to an
+      # arbitrary one (see config.find_squad_server_pid).
+      SQREADER_SQUAD_PORT: ${SQREADER_SQUAD_PORT:?set SQREADER_SQUAD_PORT in .env to this server's -Port=}
+
+  # Prunes ./sqreader-data/recordings daily (~250 MB/day otherwise, and a full
+  # disk takes the game down too). Same policy as deploy/sqreader-retention.*.
+  # --min-free-gb sees the host disk: /data is a bind mount.
+  sqreader-retention:
+    build: .
+    image: sqreader:local
+    pull_policy: build  # local image; never try Docker Hub
+    cap_drop: [ALL]
+    network_mode: none
+    read_only: true
+    restart: always
+    volumes:
+      - ./sqreader-data:/data
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        mkdir -p /data/recordings;
+        while :; do
+        python -m sqreader.cli retention --recordings-dir /data/recordings
+        --max-age-days 90 --max-total-gb 150 --min-free-gb 50;
+        sleep 86400;
+        done
