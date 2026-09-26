@@ -27,6 +27,7 @@ services:
     cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
     build: .
     image: sqreader:local
+    pull_policy: build  # local image; never try Docker Hub
     command:
       - serve
       - --host=0.0.0.0  # inside the container; `ports` keeps it loopback-only on the host
@@ -60,6 +61,7 @@ services:
   sqreader-retention:
     build: .
     image: sqreader:local
+    pull_policy: build  # local image; never try Docker Hub
     cap_drop: [ALL]
     network_mode: none
     read_only: true
