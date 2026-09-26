@@ -25,8 +25,8 @@ services:
     restart: always
     stop_grace_period: 30s
     cpuset: "4-7"  # mirrors the systemd drop-in's AllowedCPUs — adjust per box
-    build:
-      context: .
+    build: .
+    image: sqreader:local
     command:
       - serve
       - --host=0.0.0.0  # inside the container; `ports` keeps it loopback-only on the host
@@ -53,3 +53,25 @@ services:
       # more than one Squad server the reader would otherwise attach to an
       # arbitrary one (see config.find_squad_server_pid).
       SQREADER_SQUAD_PORT: ${SQREADER_SQUAD_PORT:?set SQREADER_SQUAD_PORT in .env to this server's -Port=}
+
+  # Prunes ./sqreader-data/recordings daily (~250 MB/day otherwise, and a full
+  # disk takes the game down too). Same policy as deploy/sqreader-retention.*.
+  # --min-free-gb sees the host disk: /data is a bind mount.
+  sqreader-retention:
+    build: .
+    image: sqreader:local
+    cap_drop: [ALL]
+    network_mode: none
+    read_only: true
+    restart: always
+    volumes:
+      - ./sqreader-data:/data
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        while :; do
+        python -m sqreader.cli retention --recordings-dir /data/recordings
+        --max-age-days 90 --max-total-gb 150 --min-free-gb 50;
+        sleep 86400;
+        done

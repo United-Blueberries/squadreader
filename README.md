@@ -190,10 +190,10 @@ docker compose up -d
 Rollback: `docker compose stop` and
 `sudo systemctl enable --now sqreader-prod`.
 
-Retention (`deploy/sqreader-retention.service`/`.timer`) points at the
-systemd install's directory by default — repoint it at
-`sqreader-data/recordings`, or replace it with a timer that runs
-`docker compose run --rm sqreader retention --recordings-dir /data/recordings ...`.
+Retention is built in: the `sqreader-retention` service prunes
+`sqreader-data/recordings` daily with the same policy as
+`deploy/sqreader-retention.*` (90 days, 150 GB max, 50 GB free on the host
+disk). The systemd timer keeps cleaning the systemd install only.
 
 ## What data it collects and where it writes
 
