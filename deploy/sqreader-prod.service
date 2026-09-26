@@ -1,3 +1,4 @@
+# Container alternative: docker-compose.yml (see README's "Docker" section).
 [Unit]
 Description=sqreader live map (prod Squad pid, auto-resolved)
 After=network.target

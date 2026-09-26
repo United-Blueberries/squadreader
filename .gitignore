@@ -2,6 +2,7 @@
 .ssh_config.json
 .env
 .env.*
+!.env.example
 *.pem
 # Per-machine runtime config (copy sqreader.config.example.json). Machine paths.
 sqreader.config.json
@@ -73,3 +74,7 @@ build/
 # filenames. The result installs as a blank page. Re-include it explicitly.
 !frontend/dist/
 !frontend/dist/**
+
+# Docker data dir (docker-compose.yml)
+sqreader-data/
+docker-compose.override.yml

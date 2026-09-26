@@ -116,6 +116,11 @@ def log_from_pid(pid: int) -> Optional[str]:
     fallback glob below only looks under ``/home/*/serverfiles`` — LinuxGSM's
     layout — and a Docker image, an /opt install or a user outside /home would
     find nothing and lose the kill feed without ever saying why.
+
+    If the game runs in a different container (or we do), `cand` exists only
+    inside the target's mount namespace and `os.access` on it fails even
+    though the file is there — fall back to reading it through
+    ``/proc/<pid>/root``, which resolves paths via that namespace.
     """
     import os
     try:
@@ -128,7 +133,10 @@ def log_from_pid(pid: int) -> Optional[str]:
     if not root or root == os.sep:
         return None
     cand = os.path.join(root, "SquadGame", "Saved", "Logs", "SquadGame.log")
-    return cand if os.access(cand, os.R_OK) else None
+    if os.access(cand, os.R_OK):
+        return cand
+    via_root = f"/proc/{pid}/root{cand}"
+    return via_root if os.access(via_root, os.R_OK) else None
 
 
 def find_squad_log(pid: Optional[int] = None) -> Optional[str]:

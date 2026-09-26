@@ -7,8 +7,11 @@ its process name and output dirs default next to the repo. Only non-standard
 setups (an install path outside ``/home/<user>/serverfiles``, a custom server
 id) need a ``sqreader.config.json`` — copy ``sqreader.config.example.json``.
 
-Resolution order for every key:  CLI flag  >  sqreader.config.json  >  DEFAULTS.
-The config file is located via ``$SQREADER_CONFIG``, else ``./sqreader.config.json``.
+Resolution order for every key:  CLI flag  >  env var  >  sqreader.config.json  >
+DEFAULTS. The config file is located via ``$SQREADER_CONFIG``, else
+``./sqreader.config.json``. Every key can also be set via ``SQREADER_<KEY>`` (e.g.
+``SQREADER_SQUAD_PORT``) — handy for containers, where editing a mounted config
+file per-deployment is more friction than an env var.
 """
 from __future__ import annotations
 
@@ -120,12 +123,24 @@ def _load() -> dict[str, Any]:
                             if not k.startswith("_")})
         except (OSError, ValueError):
             pass
+    for key, default in DEFAULTS.items():
+        raw = os.environ.get(f"SQREADER_{key.upper()}")
+        if raw is None:
+            continue
+        if isinstance(default, str):
+            cfg[key] = raw
+        else:
+            try:
+                cfg[key] = json.loads(raw)
+            except ValueError:
+                cfg[key] = raw
     _cache = cfg
     return cfg
 
 
 def get(key: str) -> Any:
-    """Config value for ``key`` (config file overrides the built-in default)."""
+    """Config value for ``key`` (env var overrides the config file, which
+    overrides the built-in default)."""
     return _load().get(key, DEFAULTS.get(key))
 
 

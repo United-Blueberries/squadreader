@@ -72,8 +72,11 @@ server is auto-detected by its process name.
 ## Configuration
 
 Copy `sqreader.config.example.json` to `sqreader.config.json` (gitignored) and
-edit only what your box needs. Resolution order is **CLI flag > config file >
-built-in default**, so every value can also be passed on the command line.
+edit only what your box needs. Resolution order is **CLI flag > env var >
+config file > built-in default**, so every value can also be passed on the
+command line, or set as an `SQREADER_<KEY>` environment variable (e.g.
+`SQREADER_SQUAD_PORT=7787`) — handy in Docker, where editing a mounted config
+file per-deployment is more friction than an env var.
 
 | Key | Default | Meaning |
 |-----|---------|---------|
@@ -145,6 +148,65 @@ the `cp`+`sed` in step 3 from inside the correct directory and
    Traefik, ...) by proxying to `127.0.0.1:8081` — see
    [`deploy/nginx_reverse-proxy.example.conf`](deploy/nginx_reverse-proxy.example.conf)
    for a worked example.
+
+## Docker
+
+sqreader can also run *in* a container, using
+[`docker-compose.yml`](docker-compose.yml). This
+needs more than `docker run` because `/proc/<pid>/mem` access requires
+`pid: host` plus `CAP_SYS_PTRACE`/`CAP_DAC_READ_SEARCH` (see the compose
+file's comments for why), apparmor may need to be relaxed for the same
+reason, and the install must stay editable (`pip install -e`) —
+`sqreader/squad/metadata.py` locates `data/static` via `__file__`, so a
+site-packages install would silently load empty maps.
+
+Configure everything in `.env` (gitignored; template in
+[`.env.example`](.env.example)):
+
+```bash
+cp .env.example .env   # fill in SQUAD_LOGS and SQREADER_SQUAD_PORT
+
+docker compose run --rm sqreader doctor
+docker compose up -d
+```
+
+`SQUAD_LOGS` and `SQREADER_SQUAD_PORT` are required; compose refuses to start
+without them. The port pins the reader to one server: without it the resolver
+falls back to `pidof -s`, which answers arbitrarily when several Squad servers
+run on the box. Any other `sqreader.config.json` key can be added to `.env` as
+`SQREADER_<KEY>`. Note that values there (e.g. `SQREADER_ALERT_WEBHOOK`) are
+visible via `docker inspect`.
+
+Box-specific compose changes (joining a reverse proxy's network, CPU pinning
+via `cpuset` away from the game server's cores, extra mounts, …) go in `docker-compose.override.yml` (gitignored), which compose
+merges automatically. E.g. to let a proxy container reach `sqreader:8081`:
+
+```yaml
+services:
+  sqreader:
+    networks: [default, edge]
+networks:
+  edge:
+    external: true
+```
+
+**Switching over from an existing systemd install**: the container uses its
+own `sqreader-data/` dir, so it's safe to run next to `sqreader-prod` on a
+different port first (`SQREADER_PORT=8082`) to try it out. Once satisfied:
+
+```bash
+sudo systemctl disable --now sqreader-prod
+# set SQREADER_PORT back to 8081 (or drop it — that's the default) in .env
+docker compose up -d
+```
+
+Rollback: `docker compose stop` and
+`sudo systemctl enable --now sqreader-prod`.
+
+Retention is built in: the `sqreader-retention` service prunes
+`sqreader-data/recordings` daily with the same policy as
+`deploy/sqreader-retention.*` (90 days, 150 GB max, 50 GB free on the host
+disk). The systemd timer keeps cleaning the systemd install only.
 
 ## What data it collects and where it writes
 

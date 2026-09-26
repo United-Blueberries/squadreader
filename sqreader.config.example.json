@@ -5,7 +5,9 @@
     "On a standard single-instance box you usually need NO config at all: the",
     "Squad server is found by its process name and output dirs default next to",
     "the repo. Only non-standard setups need to change anything below.",
-    "The file is loaded from $SQREADER_CONFIG, else ./sqreader.config.json."
+    "The file is loaded from $SQREADER_CONFIG, else ./sqreader.config.json.",
+    "Every key below can also be set via an SQREADER_<KEY> env var (e.g.",
+    "SQREADER_SQUAD_PORT), which wins over this file but loses to a CLI flag."
   ],
 
   "squad_process_name": "SquadGameServer",
