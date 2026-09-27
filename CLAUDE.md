@@ -51,6 +51,15 @@ also have npm scripts (`test:kf`, `test:cap`, `test:tickets`, `test:recon`, `tes
 `test:markers`, `test:crosslang`, `test:mapfallback`, `test:ruler`), each esbuild-bundling one
 `*.test.mts` and running it with `node`.
 
+E2E (`cd frontend`, after `npm run build`; first time also `npx playwright install chromium`):
+```sh
+npm run e2e          # Playwright smoke test of the built SPA (e2e/*.spec.ts)
+```
+It serves a synthetic match via `scripts/e2e_serve.py` (backend must be installed; override the
+interpreter with `E2E_PYTHON`). That match is `tests/e2e_match.py`, pushed through the real
+recorder + `StatsStore`; `tests/test_e2e_pipeline.py` checks the same match over HTTP in pytest.
+Neither touches the memory layer — only `sqreader test` on a live box covers that.
+
 Packaging (compiled Nuitka binary, only relevant when touching `packaging/`):
 ```sh
 cp packaging/entitlements.env.example packaging/entitlements.env   # once
