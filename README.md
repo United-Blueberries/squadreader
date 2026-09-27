@@ -84,6 +84,7 @@ file per-deployment is more friction than an env var.
 | `squad_binary_pattern` | `/home/.*/serverfiles/.*SquadGameServer` | pgrep pattern to pick the right instance on a multi-instance box |
 | `squad_log_glob` | `/home/*/serverfiles/…/SquadGame.log` | server log the kill-feed reads |
 | `server_id` | `squad` | label written into each snapshot and used as the stats-DB partition key |
+| `stats_enabled` | `false` | show stats in the viewer / serve the stats API (`SQREADER_STATS_ENABLED=true`); off = replays only, stats are still collected |
 
 Output directories are `serve`/`record` flags (`--recordings-dir`, `--stats-db`,
 `--icons-dir`, `--sqmaps-dir`, `--frontend-dir`) and default next to the repo.

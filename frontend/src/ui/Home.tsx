@@ -31,10 +31,15 @@ export function Home() {
 
   const [recs, setRecs] = useState<RecordingMeta[] | null>(null);
   const [top, setTop] = useState<LeaderRow[] | null>(null);
+  // Off when the server has stats disabled (SQREADER_STATS_ENABLED=false → 404).
+  const [statsOn, setStatsOn] = useState(true);
 
   useEffect(() => {
     listRecordings().then(setRecs).catch(() => setRecs([]));
-    fetchLeaderboard("kills", 6, "alltime").then(setTop).catch(() => setTop([]));
+    fetchLeaderboard("kills", 6, "alltime").then(setTop).catch((e) => {
+      setTop([]);
+      if (String(e).includes("404")) setStatsOn(false);
+    });
   }, []);
 
   const live = recs?.find((r) => r.inProgress) ?? null;
@@ -61,7 +66,7 @@ export function Home() {
             <span className="chip hm-beta">BETA</span>
           </div>
           <nav className="hm-nav">
-            <button className="btn btn-ghost" onClick={() => showModal("player-stats")}>Stats</button>
+            {statsOn && <button className="btn btn-ghost" onClick={() => showModal("player-stats")}>Stats</button>}
             <button className="btn btn-ghost" onClick={() => showModal("recording-picker")}>Recordings</button>
           </nav>
         </header>
@@ -81,11 +86,11 @@ export function Home() {
           </p>
           <div className="hm-cta">
             <button className="btn btn-primary btn-lg" onClick={() => showModal("recording-picker")}>Watch Recordings →</button>
-            <button className="btn btn-lg" onClick={() => showModal("player-stats")}>Stats</button>
+            {statsOn && <button className="btn btn-lg" onClick={() => showModal("player-stats")}>Stats</button>}
           </div>
         </section>
 
-        <div className="hm-cols">
+        <div className={"hm-cols" + (statsOn ? "" : " hm-one")}>
           <section className="card hm-panel">
             <div className="hm-panel-h"><h2>Recent Matches</h2></div>
             <div className="hm-list">
@@ -105,7 +110,7 @@ export function Home() {
             </div>
           </section>
 
-          <section className="card hm-panel">
+          {statsOn && <section className="card hm-panel">
             <div className="hm-panel-h">
               <h2>Top Players</h2>
               <button className="btn btn-ghost hm-more" onClick={() => showModal("player-stats")}>All</button>
@@ -124,7 +129,7 @@ export function Home() {
                 </button>
               ))}
             </div>
-          </section>
+          </section>}
         </div>
 
         <footer className="hm-foot">

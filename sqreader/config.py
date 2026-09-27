@@ -45,6 +45,10 @@ DEFAULTS: dict[str, Any] = {
     # the agent derives a stable id for those servers instead. Inert on licensed
     # servers, which always supply their own. See sqreader/synth_match.py.
     "synthetic_match_ids": True,
+    # Serve the stats API / show stats in the viewer. Off by default, so the
+    # viewer is replays-only; stats are still collected (push, plugins, ELO),
+    # just not exposed until this is turned on.
+    "stats_enabled": False,
     # --- optional central push (OFF by default; opt-in via `sqreader enroll`) ---
     # If set + the box is enrolled (see agent_creds/.env.agent), finished-match
     # stats + .sqrx replays are pushed to this central. NON-SECRET keys only —
