@@ -68,6 +68,12 @@ function drawGrid(ctx: CanvasRenderingContext2D, view: ViewState, cs: CanvasSize
   const endX   = Math.ceil(view.maxX / step) * step;
   const startY = Math.floor(view.minY / step) * step;
   const endY   = Math.ceil(view.maxY / step) * step;
+  // Past ~1e20, x += step no longer changes x: an absurd view would loop forever
+  // appending path segments until the tab runs out of memory.
+  if ((endX - startX) / step > 2000 || (endY - startY) / step > 2000) {
+    ctx.restore();
+    return;
+  }
   ctx.beginPath();
   for (let x = startX; x <= endX; x += step) {
     const [sx] = worldToScreen(view, cs, x, 0);
