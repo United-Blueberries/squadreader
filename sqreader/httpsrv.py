@@ -678,8 +678,7 @@ def _make_handler(
             be passing None into a query.
             """
             if stats_db is None:
-                self.send_error(404, "stats disabled "
-                                "(server started without --stats-db)")
+                self.send_error(404, "stats disabled")
                 return None
             return stats_db
 

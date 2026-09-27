@@ -945,7 +945,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
                               # slow cadence doesn't make /health twitchy.
                               stale_after_sec=max(30.0, 15.0 / args.hz),
                               cors_origin=args.cors_origin,
-                              stats_db=stats_db_path)
+                              stats_db=(stats_db_path
+                                        if config.get("stats_enabled")
+                                        else None))
     period = 1.0 / args.hz
     feature_list = ["/health"]
     if recordings_dir:
