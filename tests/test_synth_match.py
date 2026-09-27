@@ -14,6 +14,7 @@ import sqlite3
 
 import pytest
 
+from e2e_match import recorder_box
 from sqreader.synth_match import STATE_FILENAME, SyntheticMatchIds
 
 
@@ -281,7 +282,7 @@ def test_unlicensed_server_produces_a_replay_file(tmp_path):
     from sqreader.recorder import _handle_snap, finalize_recording
 
     res = make(tmp_path / "state")
-    box = _recorder_box()
+    box = recorder_box()
     out_dir = tmp_path / "rec"
     out_dir.mkdir()
     names: list = []
@@ -297,15 +298,6 @@ def test_unlicensed_server_produces_a_replay_file(tmp_path):
     finalize_recording(box["current"], min_ticks=0, reason="test")
     written = list(out_dir.glob("*.sqrx"))
     assert len(written) == 1, f"expected one replay, got {written}"
-
-
-def _recorder_box():
-    return {
-        "current": None, "last_state": None, "inactive_ticks": 0,
-        "pending_match_id": None, "pending_match_buffer": [],
-        "last_tick": None, "tick_sequence_required": False,
-        "missing_tick_warned": False,
-    }
 
 
 def test_two_matches_in_a_row_are_kept_apart(tmp_path):
@@ -327,7 +319,7 @@ def test_two_matches_in_a_row_are_kept_apart(tmp_path):
                 "teamId": 1, "soldier": None, "stats": {"kills": 1}}]
     res = make(tmp_path / "state")
     store = StatsStore(tmp_path / "s.db", server_id="gm-1")
-    box = _recorder_box()
+    box = recorder_box()
     out_dir = tmp_path / "rec"
     out_dir.mkdir()
     names: list = []
