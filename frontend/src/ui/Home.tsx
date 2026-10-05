@@ -83,7 +83,7 @@ export function Home() {
           </div>
         </section>
 
-        <div className="hm-cols">
+        <div className={"hm-cols" + (statsOff ? " is-single" : "")}>
           <section className="card hm-panel">
             <div className="hm-panel-h"><h2>Recent Matches</h2></div>
             <div className="hm-list">
@@ -125,7 +125,7 @@ export function Home() {
           </section>}
         </div>
 
-        <footer className="hm-foot">sqreader · live Squad server map, stats and replay</footer>
+        <footer className="hm-foot">sqreader · live Squad server {statsOff ? "map and replay" : "map, stats and replay"}</footer>
       </div>
     </div>
   );
