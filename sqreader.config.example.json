@@ -13,6 +13,12 @@
   "squad_log_glob": "/home/*/serverfiles/SquadGame/Saved/Logs/SquadGame.log",
   "server_id": "squad",
 
+  "_stats_public_comment": [
+    "false = the player-stats API (players, leaderboard, weapons) returns 404",
+    "and the viewer hides its Stats UI. Stats are still recorded."
+  ],
+  "stats_public": true,
+
   "_plugins_comment": [
     "Plugins are off unless a config path is given. --plugins-config wins;",
     "this key is the fallback for deployments whose start command is not",

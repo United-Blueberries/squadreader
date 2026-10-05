@@ -241,6 +241,24 @@ def test_stats_endpoints_404_when_stats_are_disabled(tmp_path):
         srv.shutdown()
 
 
+def test_player_stats_404_when_not_public(tmp_path, monkeypatch):
+    from sqreader import config
+    monkeypatch.setattr(config, "_cache", {**config.DEFAULTS, "stats_public": False})
+    srv, port = _server(tmp_path)
+    try:
+        for path in ("/api/leaderboard?stat=kills", "/api/players?q=Ali",
+                     "/api/players/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                     "/api/weapons"):
+            try:
+                _get(port, path)
+                raise AssertionError(f"{path} should 404 with stats_public off")
+            except urllib.error.HTTPError as e:
+                assert e.code == 404
+        assert isinstance(_get(port, "/api/matches"), list)
+    finally:
+        srv.shutdown()
+
+
 def test_matches_list_endpoint(tmp_path):
     srv, port = _server(tmp_path)
     try:
