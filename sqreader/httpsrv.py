@@ -38,6 +38,7 @@ import zlib
 from pathlib import Path
 from typing import Any, Optional
 
+from . import config
 from .recording_lifecycle import (
     RECORDING_STATE_ACTIVE as _REC_STATE_ACTIVE,
     RECORDING_STATE_FINALIZED as _REC_STATE_FINALIZED,
@@ -443,6 +444,11 @@ def _make_handler(
 
         def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
             path = self.path.split("?", 1)[0]
+            if not config.get("stats_public") and (
+                    path.startswith("/api/players")
+                    or path.rstrip("/") in ("/api/leaderboard", "/api/weapons")):
+                self.send_error(404, "player stats disabled")
+                return
             # /api/recording/<id>[/meta] — variable path, handle first
             if path.startswith("/api/recording/"):
                 self._handle_recording_one(path[len("/api/recording/"):])
