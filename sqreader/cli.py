@@ -875,12 +875,35 @@ def cmd_serve(args: argparse.Namespace) -> int:
         except Exception as _ue:
             print(f"[update] {_ue!r}", file=sys.stderr)
 
+    round_notifier = None
+    if stats_db_path and config.get("round_webhook"):
+        try:
+            from .plugins.notify import RoundNotifier
+            # sqmaps_dir is resolved further down; it is filled in there.
+            round_notifier = RoundNotifier(
+                str(config.get("round_webhook")), db_path=stats_db_path,
+                recordings_dir=recordings_dir,
+                server_url=config.get("server_url") or None,
+                server_label=args.server_id)
+            # Never print the URL: it is a credential.
+            print("rounds: results also go to a webhook", file=sys.stderr)
+        except Exception as _re:
+            print(f"round webhook disabled (init failed): {_re!r}",
+                  file=sys.stderr)
+
+    def _on_finalize(mid: str) -> None:
+        if push_active:
+            _enqueue_push(mid)
+        if round_notifier is not None:
+            round_notifier.offer(mid)
+
     if stats_db_path:
         try:
             from .stats import StatsStore
             stats_store = StatsStore(
                 stats_db_path, server_id=args.server_id,
-                on_finalize=_enqueue_push if push_active else None)
+                on_finalize=(_on_finalize if push_active or round_notifier
+                             else None))
         except Exception as _se:
             print(f"stats store disabled (init failed): {_se!r}",
                   file=sys.stderr)
@@ -947,6 +970,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         cwd_sqmaps = Path("sqmaps")
         if cwd_sqmaps.is_dir():
             sqmaps_dir = cwd_sqmaps
+    if round_notifier is not None:
+        round_notifier.sqmaps_dir = sqmaps_dir
     frontend_dir = (Path(args.frontend_dir).expanduser()
                     if getattr(args, "frontend_dir", None) else None)
     if frontend_dir is None:
@@ -1350,6 +1375,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         # sent stays queued for the next start.
         if not _flush_running():
             _flush_push()
+        if round_notifier is not None:
+            round_notifier.close()
         if placer_cache_path is not None:
             _save_placer_cache(caches, placer_cache_path)  # keep placers
         srv.shutdown()

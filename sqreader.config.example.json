@@ -41,6 +41,16 @@
   "alert_replay_base": "https://squadreader.com",
   "alert_min_confidence": 0.0,
 
+  "_rounds_comment": [
+    "Set round_webhook to a Discord webhook URL to post every finished round:",
+    "winner, tickets, duration, the minimap and a link to its replay. Same",
+    "credential rules as alert_webhook. server_url is the public root of this",
+    "sqreader site; the replay link is <server_url>/?mode=replay&id=<recording>.",
+    "Needs --stats-db; the map image needs --sqmaps-dir (or ./sqmaps)."
+  ],
+  "round_webhook": null,
+  "server_url": null,
+
   "_multi_instance_comment": [
     "Running SEVERAL Squad servers on one box? Set squad_port to the -Port= of",
     "the one THIS agent reads, and give each agent its own server_id. Without",

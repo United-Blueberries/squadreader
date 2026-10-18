@@ -13,6 +13,7 @@ import { arrowEnd, markerShape } from "./markerGeometry";
 import { drawProjectilesAndImpacts } from "./projectiles";
 import { coord, viewWindow, worldToScreen } from "./worldToScreen";
 import { visibleCaps } from "./capVisibility";
+import { saveState, restoreState, resetStateStack, textWidth } from "./canvasState";
 import { capOccupancy } from "./capOccupancy";
 import { fallbackMap } from "./mapFallback";
 import { drawRuler, type Ruler } from "./ruler";
@@ -73,7 +74,7 @@ function drawMapTexture(ctx: CanvasRenderingContext2D, snap: Snapshot,
 }
 
 function drawGrid(ctx: CanvasRenderingContext2D, view: ViewState, cs: CanvasSize) {
-  ctx.save();
+  saveState(ctx);
   ctx.strokeStyle = "#1a2230";
   ctx.lineWidth = 1 * cs.dpr;
   const step = 10000;
@@ -95,7 +96,7 @@ function drawGrid(ctx: CanvasRenderingContext2D, view: ViewState, cs: CanvasSize
     ctx.moveTo(0, sy); ctx.lineTo(cs.width, sy);
   }
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 }
 
 // AAS / RAAS lane graph — solid lines connecting capture zones in
@@ -204,7 +205,7 @@ function drawLane(ctx: CanvasRenderingContext2D, snap: Snapshot,
   }
   if (!segs.length) return;
 
-  ctx.save();
+  saveState(ctx);
   ctx.lineCap = "round";
   // (1) Dark halo underneath for terrain legibility.
   ctx.lineWidth = 5 * cs.dpr;
@@ -223,7 +224,7 @@ function drawLane(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
   }
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 }
 
 // Draw a cap zone's real footprint from static SquadCalc geometry (sphere /
@@ -252,19 +253,19 @@ function drawCapGeometry(
   const dash: number[] = opts.dashed ? [6 * cs.dpr, 4 * cs.dpr] : [];
   for (const g of geometry) {
     const [sx, sy] = worldToScreen(view, cs, center.x + g.dx, center.y + g.dy);
-    ctx.save();
+    saveState(ctx);
     ctx.strokeStyle = opts.stroke;
     ctx.fillStyle = opts.fill;
     ctx.lineWidth = lw;
     ctx.setLineDash(dash);
     if (g.type === "sphere") {
       const r = g.radius * pxPerWorld;
-      if (r < 2) { ctx.restore(); continue; }
+      if (r < 2) { restoreState(ctx); continue; }
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, 2 * Math.PI);
     } else if (g.type === "box") {
       const hw = g.extX * pxPerWorld, hh = g.extY * pxPerWorld;
-      if (hw < 2 && hh < 2) { ctx.restore(); continue; }
+      if (hw < 2 && hh < 2) { restoreState(ctx); continue; }
       ctx.translate(sx, sy);
       if (g.rot) ctx.rotate((g.rot * Math.PI) / 180);
       ctx.beginPath();
@@ -274,7 +275,7 @@ function drawCapGeometry(
       // flags.js (SquadCalc `length` is the capsule half-height).
       const r = g.radius * pxPerWorld;
       const halfLen = (g.length - g.radius) * pxPerWorld;
-      if (r < 2) { ctx.restore(); continue; }
+      if (r < 2) { restoreState(ctx); continue; }
       ctx.translate(sx, sy);
       if (g.rot) ctx.rotate((g.rot * Math.PI) / 180);
       ctx.beginPath();
@@ -287,7 +288,7 @@ function drawCapGeometry(
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
   }
 }
 
@@ -364,11 +365,11 @@ function drawLaneNodeCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.moveTo(x, y - r); ctx.lineTo(x + r, y);
       ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath();
     };
-    ctx.save();
+    saveState(ctx);
     ctx.shadowColor = "rgba(0,0,0,0.55)";
     ctx.shadowBlur = r * 0.7; ctx.shadowOffsetY = r * 0.12;
     diamond(); ctx.fillStyle = col; ctx.fill();
-    ctx.restore();
+    restoreState(ctx);
     diamond();
     ctx.lineWidth = 1.6 * cs.dpr;
     ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.stroke();
@@ -455,7 +456,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
           fillAlpha: contested ? 0.25 : 0.18 });
     } else {
       const ringPx = Math.max(28 * cs.dpr, Math.min(ringR, 180 * cs.dpr));
-      ctx.save();
+      saveState(ctx);
       ctx.setLineDash([6 * cs.dpr, 5 * cs.dpr]);
       ctx.lineWidth = 1.5 * cs.dpr;
       ctx.strokeStyle = ownColor;
@@ -463,7 +464,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.beginPath();
       ctx.arc(x, y, ringPx, 0, 2 * Math.PI);
       ctx.stroke();
-      ctx.restore();
+      restoreState(ctx);
     }
 
     // (2) Capture progress arc, drawn just outside the flag badge.
@@ -472,7 +473,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
     const arcR  = Math.max(badgeW, badgeH) * 0.62;
     if (cz.capturePercent != null && cz.capturePercent > 0
         && cz.capturePercent < 1) {
-      ctx.save();
+      saveState(ctx);
       ctx.beginPath();
       ctx.arc(x, y, arcR, -Math.PI / 2,
               -Math.PI / 2 + 2 * Math.PI * cz.capturePercent);
@@ -480,7 +481,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.strokeStyle = capColor;
       ctx.globalAlpha = 0.9;
       ctx.stroke();
-      ctx.restore();
+      restoreState(ctx);
     }
 
     // (3) Flag-shaped rounded rectangle with drop shadow. The badge is a
@@ -493,14 +494,14 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
     const flagImg = flagUrl ? icon(flagUrl) : null;
     const flagReady = !!(flagImg && flagImg.complete && flagImg.naturalWidth > 0);
 
-    ctx.save();
+    saveState(ctx);
     ctx.shadowColor   = "rgba(0,0,0,0.55)";
     ctx.shadowBlur    = badgeW * 0.18;
     ctx.shadowOffsetY = badgeW * 0.04;
     roundRectPath(ctx, bx, by, badgeW, badgeH, rad);
     ctx.fillStyle = ownColor;
     ctx.fill();
-    ctx.restore();
+    restoreState(ctx);
 
     if (flagReady) {
       // (4a) Faction flag, COVER-fit into the badge and clipped: the 2:1 art is
@@ -567,7 +568,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       const lkR = 7 * cs.dpr;
       const lkx = bx + badgeW - lkR * 0.4;
       const lky = by + lkR * 0.4;
-      ctx.save();
+      saveState(ctx);
       ctx.shadowColor = "rgba(0,0,0,0.5)";
       ctx.shadowBlur = 3;
       ctx.beginPath();
@@ -577,9 +578,9 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.lineWidth = 1 * cs.dpr;
       ctx.strokeStyle = "rgba(255,255,255,0.6)";
       ctx.stroke();
-      ctx.restore();
+      restoreState(ctx);
       // Simple padlock shape: shackle + body.
-      ctx.save();
+      saveState(ctx);
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.2 * cs.dpr;
       // Shackle (arc)
@@ -590,7 +591,7 @@ function drawCaps(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(lkx - 2.5 * cs.dpr, lky + 0.5 * cs.dpr,
                    5 * cs.dpr, 3.5 * cs.dpr);
-      ctx.restore();
+      restoreState(ctx);
     }
   }
 }
@@ -635,14 +636,14 @@ function drawCapCounts(ctx: CanvasRenderingContext2D, snap: Snapshot,
   const f = Math.max(10, Math.round(10 * cs.dpr));
   const h = f + 5 * cs.dpr;
   const gap = 3 * cs.dpr;
-  ctx.save();
+  saveState(ctx);
   ctx.font = `bold ${f}px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (const s of spots) {
     const chips = ([[1, s.t1], [2, s.t2]] as const).filter(([, n]) => n > 0);
     const widths = chips.map(([, n]) =>
-      Math.max(h, ctx.measureText(String(n)).width + 8 * cs.dpr));
+      Math.max(h, textWidth(ctx, String(n)) + 8 * cs.dpr));
     let x = s.x - (widths.reduce((a, b) => a + b, 0) + gap * (chips.length - 1)) / 2;
     chips.forEach(([team, n], i) => {
       const w = widths[i]!;
@@ -657,7 +658,7 @@ function drawCapCounts(ctx: CanvasRenderingContext2D, snap: Snapshot,
       x += w + gap;
     });
   }
-  ctx.restore();
+  restoreState(ctx);
 }
 
 // Helper: roundRect path on canvas (Edge < 99 doesn't ship Path.roundRect,
@@ -693,7 +694,7 @@ function drawDeployableBadge(ctx: CanvasRenderingContext2D,
   const rInner = iconSize * 0.41;
 
   // (1) Drop shadow + solid team-coloured disc
-  ctx.save();
+  saveState(ctx);
   ctx.shadowColor    = "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur     = iconSize * 0.18;
   ctx.shadowOffsetY  = iconSize * 0.05;
@@ -701,7 +702,7 @@ function drawDeployableBadge(ctx: CanvasRenderingContext2D,
   ctx.arc(cx, cy, rOuter, 0, 2 * Math.PI);
   ctx.fillStyle = teamCol;
   ctx.fill();
-  ctx.restore();
+  restoreState(ctx);
 
   // (2) Dark inner screen
   ctx.beginPath();
@@ -745,7 +746,7 @@ function drawFobRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
     const tc = teamColor(d.team);
 
     // Inner build radius — soft filled disc
-    ctx.save();
+    saveState(ctx);
     ctx.beginPath();
     ctx.arc(cx, cy, rInner, 0, 2 * Math.PI);
     ctx.fillStyle = tc;
@@ -755,10 +756,10 @@ function drawFobRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.lineWidth = 1.5 * cs.dpr;
     ctx.strokeStyle = tc;
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
 
     // Outer influence — dashed ring
-    ctx.save();
+    saveState(ctx);
     ctx.beginPath();
     ctx.arc(cx, cy, rOuter, 0, 2 * Math.PI);
     ctx.setLineDash([10 * cs.dpr, 7 * cs.dpr]);
@@ -766,7 +767,7 @@ function drawFobRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.strokeStyle = tc;
     ctx.globalAlpha = 0.85;
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
   }
 }
 
@@ -828,8 +829,8 @@ function drawFobResourceLabel(ctx: CanvasRenderingContext2D,
   ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const ammoW = ctx.measureText(ammoTxt).width;
-  const conW  = ctx.measureText(conTxt).width;
+  const ammoW = textWidth(ctx, ammoTxt);
+  const conW  = textWidth(ctx, conTxt);
 
   const padX = 6 * cs.dpr;
   const padY = 3 * cs.dpr;
@@ -914,7 +915,7 @@ function drawVehicleBadge(ctx: CanvasRenderingContext2D,
   const rInner = iconSize * 0.41;
 
   // (1) Drop shadow + solid team-coloured disc
-  ctx.save();
+  saveState(ctx);
   ctx.shadowColor    = "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur     = iconSize * 0.18;
   ctx.shadowOffsetY  = iconSize * 0.05;
@@ -922,7 +923,7 @@ function drawVehicleBadge(ctx: CanvasRenderingContext2D,
   ctx.arc(cx, cy, rOuter, 0, 2 * Math.PI);
   ctx.fillStyle = teamCol;
   ctx.fill();
-  ctx.restore();
+  restoreState(ctx);
 
   // (2) Dark inner screen (kept — matches the player-badge palette)
   ctx.beginPath();
@@ -976,7 +977,7 @@ function drawNumberBadge(ctx: CanvasRenderingContext2D, cx: number, topY: number
   ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const m = ctx.measureText(text);
+  const m = { width: textWidth(ctx, text) };
   const padX = 5 * cs.dpr;
   const padY = 2 * cs.dpr;
   const w = Math.max(m.width + padX * 2, fontSize + padX * 2);
@@ -1071,7 +1072,7 @@ function drawVehicles(ctx: CanvasRenderingContext2D, snap: Snapshot,
     // Fallback when the icon hasn't loaded yet (or art is missing for
     // this vehicle kind): nose-right triangle, raw yaw.
     const ts = 7 * cs.dpr;
-    ctx.save();
+    saveState(ctx);
     ctx.translate(x, y);
     ctx.rotate(yawRaw);
     ctx.beginPath();
@@ -1084,7 +1085,7 @@ function drawVehicles(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.lineWidth = 1.2 * cs.dpr;
     ctx.strokeStyle = v.attached ? "#fff" : "#0e1116";
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
   }
 
   // Second pass — driver-squad number labels on top of every badge (Squad #s
@@ -1110,7 +1111,7 @@ function drawVehicles(ctx: CanvasRenderingContext2D, snap: Snapshot,
 function drawMarkerDiamond(ctx: CanvasRenderingContext2D,
                            x: number, y: number, size: number, col: string) {
   const r = size * 0.42;
-  ctx.save();
+  saveState(ctx);
   ctx.beginPath();
   ctx.moveTo(x, y - r);
   ctx.lineTo(x + r, y);
@@ -1126,7 +1127,7 @@ function drawMarkerDiamond(ctx: CanvasRenderingContext2D,
   ctx.lineWidth = Math.max(1.2, size * 0.07);
   ctx.strokeStyle = "rgba(0,0,0,0.75)";
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 }
 
 
@@ -1172,7 +1173,7 @@ function drawDirectionArrow(ctx: CanvasRenderingContext2D,
 
   // Local frame: +X along the arrow, so the outline is written once and read
   // in the order it is drawn.
-  ctx.save();
+  saveState(ctx);
   ctx.translate(x0, y0);
   ctx.rotate(a);
   ctx.beginPath();
@@ -1194,10 +1195,10 @@ function drawDirectionArrow(ctx: CanvasRenderingContext2D,
   ctx.lineJoin = "round";
   ctx.strokeStyle = "rgba(0,0,0,0.7)";
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 
   // The disc, upright — it carries text, so it must not turn with the arrow.
-  ctx.save();
+  saveState(ctx);
   ctx.beginPath();
   ctx.arc(ax, ay, disc, 0, Math.PI * 2);
   ctx.shadowColor = "rgba(0,0,0,0.5)";
@@ -1219,7 +1220,7 @@ function drawDirectionArrow(ctx: CanvasRenderingContext2D,
     ctx.fillStyle = "#ffffff";
     ctx.fillText(label, ax, ay);
   }
-  ctx.restore();
+  restoreState(ctx);
 }
 
 
@@ -1239,16 +1240,16 @@ function drawFrontlineSeries(ctx: CanvasRenderingContext2D,
   const ux = dx / len, uy = dy / len;
   const half = step / 2;
   const a = Math.atan2(dy, dx);
-  ctx.save();
+  saveState(ctx);
   for (let i = 0; i < n; i++) {
     const d = i * step + half;
-    ctx.save();
+    saveState(ctx);
     ctx.translate(ax + ux * d, ay + uy * d);
     ctx.rotate(a);
     ctx.drawImage(tinted, -half, -half, step, step);
-    ctx.restore();
+    restoreState(ctx);
   }
-  ctx.restore();
+  restoreState(ctx);
 }
 
 
@@ -1262,7 +1263,7 @@ function drawMarkerLabelFor(ctx: CanvasRenderingContext2D, m: Marker,
   const label = squadLabel(m);
   if (label == null) return;
   const fontPx = Math.max(10, Math.round(11 * cs.dpr));
-  ctx.save();
+  saveState(ctx);
   ctx.font = `bold ${fontPx}px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -1273,7 +1274,7 @@ function drawMarkerLabelFor(ctx: CanvasRenderingContext2D, m: Marker,
   ctx.strokeText(label, x, ly);
   ctx.fillStyle = "#ffffff";
   ctx.fillText(label, x, ly);
-  ctx.restore();
+  restoreState(ctx);
 }
 
 
@@ -1321,7 +1322,7 @@ function drawMarkers(ctx: CanvasRenderingContext2D, snap: Snapshot,
       // team-coloured point: it was really there, we just cannot say which
       // way it pointed.
       const r = size * 0.26;
-      ctx.save();
+      saveState(ctx);
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.shadowColor = "rgba(0,0,0,0.55)";
@@ -1332,7 +1333,7 @@ function drawMarkers(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.lineWidth = Math.max(1.2, size * 0.07);
       ctx.strokeStyle = "rgba(0,0,0,0.75)";
       ctx.stroke();
-      ctx.restore();
+      restoreState(ctx);
     } else if (img && img.complete && img.naturalWidth > 0) {
       const bbox = iconBbox(img);
       const colored = colorizedIcon(img, col);
@@ -1340,12 +1341,12 @@ function drawMarkers(ctx: CanvasRenderingContext2D, snap: Snapshot,
         const k  = size / Math.max(bbox.w, bbox.h);
         const dw = bbox.w * k;
         const dh = bbox.h * k;
-        ctx.save();
+        saveState(ctx);
         ctx.shadowColor   = "rgba(0,0,0,0.45)";
         ctx.shadowBlur    = size * 0.18;
         ctx.shadowOffsetY = size * 0.04;
         ctx.drawImage(colored, x - dw / 2, y - dh / 2, dw, dh);
-        ctx.restore();
+        restoreState(ctx);
       } else {
         // Colourise failed: draw the raw icon untouched.
         drawIcon(ctx, img, x, y, size);
@@ -1391,7 +1392,7 @@ function drawRallyRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
                         view: ViewState, cs: CanvasSize, ov: RallyOverlay) {
   if (!ov.focus.size) return;
   const ring = (cx: number, cy: number, r: number, col: string, burned: boolean) => {
-    ctx.save();
+    saveState(ctx);
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, 2 * Math.PI);
     ctx.fillStyle = col;
@@ -1414,7 +1415,7 @@ function drawRallyRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.strokeText("30 m", cx, cy - r - 2 * cs.dpr);
     ctx.fillStyle = "#ffffff";
     ctx.fillText("30 m", cx, cy - r - 2 * cs.dpr);
-    ctx.restore();
+    restoreState(ctx);
   };
   const radiusPx = (x: number, y: number, cx: number) =>
     Math.abs(worldToScreen(view, cs, x + RALLY_RADIUS_CM, y)[0] - cx);
@@ -1434,7 +1435,7 @@ function drawRallyRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
       const [bx, by] = worldToScreen(view, cs, b.at.x, b.at.y);
       const col = teamColor(b.teamId);
       const k = (i === 0 ? 6 : 4.5) * cs.dpr;
-      ctx.save();
+      saveState(ctx);
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(bx, by);
@@ -1461,7 +1462,7 @@ function drawRallyRadii(ctx: CanvasRenderingContext2D, snap: Snapshot,
       ctx.strokeText(b.name, bx + k + 3 * cs.dpr, by);
       ctx.fillStyle = "#ffffff";
       ctx.fillText(b.name, bx + k + 3 * cs.dpr, by);
-      ctx.restore();
+      restoreState(ctx);
     });
   }
 }
@@ -1475,13 +1476,13 @@ function drawRallyIntruders(ctx: CanvasRenderingContext2D, snap: Snapshot,
     for (const { player } of enemiesInside(snap, rp)) {
       const q = player.soldier!.position!;
       const [px, py] = worldToScreen(view, cs, q.x, q.y);
-      ctx.save();
+      saveState(ctx);
       ctx.beginPath();
       ctx.arc(px, py, 17 * cs.dpr, 0, 2 * Math.PI);
       ctx.strokeStyle = "#ff3b3b";
       ctx.lineWidth = 2.4 * cs.dpr;
       ctx.stroke();
-      ctx.restore();
+      restoreState(ctx);
     }
   }
 }
@@ -1495,12 +1496,12 @@ function drawBurnerLabel(ctx: CanvasRenderingContext2D, cx: number, bottomY: num
     ? `\u{1F525} ${first.name}${burners.length > 1 ? ` +${burners.length - 1}` : ""}`
     : "\u{1F525} burned";
   const fs = 11 * cs.dpr;
-  ctx.save();
+  saveState(ctx);
   ctx.globalAlpha = alpha;
   ctx.font = `bold ${fs}px system-ui, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const w = ctx.measureText(text).width + 10 * cs.dpr;
+  const w = textWidth(ctx, text) + 10 * cs.dpr;
   const h = fs + 6 * cs.dpr;
   roundRectPath(ctx, cx - w / 2, bottomY - h, w, h, 3 * cs.dpr);
   ctx.fillStyle = "rgba(15,18,22,0.92)";
@@ -1510,7 +1511,7 @@ function drawBurnerLabel(ctx: CanvasRenderingContext2D, cx: number, bottomY: num
   ctx.stroke();
   ctx.fillStyle = "#ffffff";
   ctx.fillText(text, cx, bottomY - h / 2 + 0.5 * cs.dpr);
-  ctx.restore();
+  restoreState(ctx);
 }
 
 // A rally the enemy burned, left on the map for a minute where it stood: the
@@ -1527,7 +1528,7 @@ function drawBurnedRallies(ctx: CanvasRenderingContext2D, snap: Snapshot,
     const size = 24 * cs.dpr;
     const left = rec.burnedMs! + BURNED_SHOW_MS - ov.nowMs;
     const alpha = Math.max(0.15, Math.min(1, left / 10_000));
-    ctx.save();
+    saveState(ctx);
     ctx.globalAlpha = 0.55 * alpha;
     if (ready) drawDeployableBadge(ctx, x, y, size, "#5a5a5a", rallyImg, false);
     ctx.globalAlpha = alpha;
@@ -1538,7 +1539,7 @@ function drawBurnedRallies(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.lineWidth = 2.6 * cs.dpr;
     ctx.strokeStyle = "#ff3b3b";
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
     drawBurnerLabel(ctx, x, y - size * 0.55 - 2 * cs.dpr,
                     burnersAt(rec, ov.nowMs), cs, alpha);
   }
@@ -1564,10 +1565,10 @@ function drawRallyPoints(ctx: CanvasRenderingContext2D, snap: Snapshot,
       // Disabled / sieged rallies dim the disc colour so the badge
       // still uses the standard wrapper.
       const disc = rp.spawningEnabled ? col : "#5a5a5a";
-      ctx.save();
+      saveState(ctx);
       if (!rp.spawningEnabled) ctx.globalAlpha = 0.65;
       drawDeployableBadge(ctx, x, y, size, disc, rallyImg, false);
-      ctx.restore();
+      restoreState(ctx);
       // Sieged overlay ring — sits just outside the badge to flag urgency.
       if (rp.sieged) {
         ctx.beginPath();
@@ -1592,7 +1593,7 @@ function drawRallyPoints(ctx: CanvasRenderingContext2D, snap: Snapshot,
     ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const m = ctx.measureText(sqLabel);
+    const m = { width: textWidth(ctx, sqLabel) };
     const padX = 5 * cs.dpr;
     const padY = 2 * cs.dpr;
     const labelW = Math.max(m.width + padX * 2, fontSize + padX * 2);
@@ -1668,7 +1669,7 @@ function drawPlayerPin(ctx: CanvasRenderingContext2D,
   // (1) Drop shadow + solid team-coloured disc. Scoped via save/restore
   // so the shadow only attaches to the outer silhouette, not the inner
   // layers (which would otherwise smudge over the bright ring).
-  ctx.save();
+  saveState(ctx);
   ctx.shadowColor    = "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur     = iconSize * 0.18;
   ctx.shadowOffsetY  = iconSize * 0.05;
@@ -1676,7 +1677,7 @@ function drawPlayerPin(ctx: CanvasRenderingContext2D,
   ctx.arc(cx, cy, rOuter, 0, 2 * Math.PI);
   ctx.fillStyle = teamCol;
   ctx.fill();
-  ctx.restore();
+  restoreState(ctx);
 
   // (2) Dark inner "screen" — solid (not semi-transparent) so the white
   // glyph on top reads cleanly even when the marker sits over light
@@ -1727,7 +1728,7 @@ function drawPlayerPin(ctx: CanvasRenderingContext2D,
     const halfA   = (14 * Math.PI) / 180;
     const a1      = yaw - halfA;
     const a2      = yaw + halfA;
-    ctx.save();
+    saveState(ctx);
     ctx.shadowColor   = "rgba(0, 0, 0, 0.45)";
     ctx.shadowBlur    = iconSize * 0.06;
     ctx.shadowOffsetY = iconSize * 0.02;
@@ -1738,7 +1739,7 @@ function drawPlayerPin(ctx: CanvasRenderingContext2D,
     ctx.closePath();
     ctx.fillStyle = teamCol;
     ctx.fill();
-    ctx.restore();
+    restoreState(ctx);
   }
 }
 
@@ -1767,7 +1768,7 @@ function drawDownedMarker(ctx: CanvasRenderingContext2D,
                           cx: number, cy: number, size: number,
                           teamCol: string) {
   const r = size * 0.6;
-  ctx.save();
+  saveState(ctx);
   ctx.globalAlpha = 0.9;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, 2 * Math.PI);
@@ -1784,7 +1785,7 @@ function drawDownedMarker(ctx: CanvasRenderingContext2D,
   ctx.moveTo(cx - c, cy); ctx.lineTo(cx + c, cy);
   ctx.moveTo(cx, cy - c); ctx.lineTo(cx, cy + c);
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 }
 
 // Admin in the developer free-cam (pawn class BP_DeveloperAdminCam_C).
@@ -1815,14 +1816,14 @@ export interface FollowHighlight {
 function drawSquadRing(ctx: CanvasRenderingContext2D, cx: number, cy: number,
                        size: number, color: string, lineWidth: number,
                        glow: boolean) {
-  ctx.save();
+  saveState(ctx);
   if (glow) { ctx.shadowColor = color; ctx.shadowBlur = size * 0.28; }
   ctx.beginPath();
   ctx.arc(cx, cy, size * 0.55, 0, 2 * Math.PI);
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.stroke();
-  ctx.restore();
+  restoreState(ctx);
 }
 
 function drawPlayers(ctx: CanvasRenderingContext2D, snap: Snapshot,
@@ -1859,11 +1860,11 @@ function drawPlayers(ctx: CanvasRenderingContext2D, snap: Snapshot,
     // tracked squad reads at a glance.
     const dim = !!follow && !squad;
 
-    ctx.save();
+    saveState(ctx);
     if (dim) ctx.globalAlpha = 0.3;
     else if (downed) ctx.globalAlpha = 0.4;   // revivable body stays visible
     drawPlayerPin(ctx, x, y, s.yaw, size, col, ready ? roleImg : null);
-    ctx.restore();
+    restoreState(ctx);
     if (downed) drawDownedMarker(ctx, x, y, size, col);
 
     // Squad-highlight rings, at full opacity (squad members are never dimmed).
@@ -1891,11 +1892,11 @@ function drawPlayers(ctx: CanvasRenderingContext2D, snap: Snapshot,
     // SL numbers a touch larger so leaders read at a glance in a cluster.
     const fontSize = size * (sl ? 0.46 : 0.4);
     // Keep numbers consistent with the pin spotlight: fade non-squad labels.
-    ctx.save();
+    saveState(ctx);
     if (follow && !inFollowSquad(p)) ctx.globalAlpha = 0.3;
     drawNumberBadge(ctx, x, y + size * 0.5 + 2 * cs.dpr,
                     String(p.squadId), teamColor(p.teamId), fontSize, cs);
-    ctx.restore();
+    restoreState(ctx);
   }
 }
 
@@ -1946,7 +1947,7 @@ function drawActionMarkerLines(ctx: CanvasRenderingContext2D,
     const [ax, ay] = worldToScreen(view, cs, sp.x, sp.y);
     const [bx, by] = worldToScreen(view, cs, m.position.x, m.position.y);
     const col = teamColor(m.team);
-    ctx.save();
+    saveState(ctx);
     // Dark halo underneath for terrain legibility.
     ctx.beginPath();
     ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
@@ -1960,7 +1961,7 @@ function drawActionMarkerLines(ctx: CanvasRenderingContext2D,
     ctx.globalAlpha = 0.85;
     ctx.lineWidth = 1 * cs.dpr;
     ctx.stroke();
-    ctx.restore();
+    restoreState(ctx);
   }
 }
 
@@ -1986,6 +1987,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, snap: Snapshot,
                             follow?: FollowHighlight | null,
                             ruler?: Ruler | null,
                             rallies?: RallyOverlay | null) {
+  resetStateStack();
   const on = (k: keyof LayerVisibility) => !layers || layers[k] !== false;
   // SL numbers default ON (absent = show, like the entity layers); the
   // all-numbers option defaults OFF (opt-in declutter, absent = hide).
