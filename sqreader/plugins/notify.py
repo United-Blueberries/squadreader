@@ -31,7 +31,10 @@ import queue
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+import uuid
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 log = logging.getLogger(__name__)
@@ -327,50 +330,277 @@ class DiscordNotifier:
             self._post_embeds(chunk)
 
     def _post_embeds(self, embeds: list[dict]) -> None:
-        payload = json.dumps({"embeds": embeds}).encode("utf-8")
-        for attempt in range(3):
-            try:
-                req = urllib.request.Request(
-                    self._url, data=payload, method="POST",
-                    headers={"Content-Type": "application/json",
-                             "User-Agent": "sqreader"})
-                with urllib.request.urlopen(req, timeout=self._timeout):
-                    return
-            except urllib.error.HTTPError as e:
-                if e.code == 429:
-                    # Discord says how long to wait; honour it rather than
-                    # hammering a channel that is already refusing us.
-                    wait = 1.0
-                    try:
-                        wait = float(json.loads(e.read() or b"{}")
-                                     .get("retry_after", 1.0))
-                    except Exception:
-                        pass
-                    if self._stop.wait(min(max(wait, 0.5), 30.0)):
-                        return
-                    continue
-                # The URL is a credential — log the code, the reason, and what
-                # Discord said was wrong (its body names the offending field
-                # and never echoes the URL). Without that a 400 is unfixable
-                # from the logs alone, which is how a whole batch went missing
-                # once already.
-                why = ""
+        _post(self._url, json.dumps({"embeds": embeds}).encode("utf-8"),
+              "application/json", self._stop, self._timeout)
+
+
+def _post(url: str, data: bytes, content_type: str,
+          stop: threading.Event, timeout: float) -> None:
+    """POST to a webhook with Discord's retry rules. Never raises, never logs
+    the URL."""
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                url, data=data, method="POST",
+                headers={"Content-Type": content_type,
+                         "User-Agent": "sqreader"})
+            with urllib.request.urlopen(req, timeout=timeout):
+                return
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                # Discord says how long to wait; honour it rather than
+                # hammering a channel that is already refusing us.
+                wait = 1.0
                 try:
-                    why = (e.read() or b"")[:300].decode("utf-8", "replace")
+                    wait = float(json.loads(e.read() or b"{}")
+                                 .get("retry_after", 1.0))
                 except Exception:
                     pass
-                log.warning("alert webhook rejected: HTTP %s %s %s",
-                            e.code, e.reason, why)
+                if stop.wait(min(max(wait, 0.5), 30.0)):
+                    return
+                continue
+            # The URL is a credential — log the code, the reason, and what
+            # Discord said was wrong (its body names the offending field
+            # and never echoes the URL). Without that a 400 is unfixable
+            # from the logs alone, which is how a whole batch went missing
+            # once already.
+            why = ""
+            try:
+                why = (e.read() or b"")[:300].decode("utf-8", "replace")
+            except Exception:
+                pass
+            log.warning("webhook rejected: HTTP %s %s %s",
+                        e.code, e.reason, why)
+            return
+        except Exception as e:                   # DNS, TLS, timeout, ...
+            if attempt == 2:
+                log.warning("webhook unreachable: %s", type(e).__name__)
                 return
-            except Exception as e:                   # DNS, TLS, timeout, ...
-                if attempt == 2:
-                    log.warning("alert webhook unreachable: %s",
-                                type(e).__name__)
-                    return
-                if self._stop.wait(1.0 + attempt):
-                    return
+            if stop.wait(1.0 + attempt):
+                return
 
 
-__all__ = ["DiscordNotifier", "build_embed", "colour_for", "format_evidence",
+# -- round results ---------------------------------------------------------
+#
+# The same channel etiquette as alerts, for the other thing people want in
+# Discord: who won. One post per confirmed match end, with the minimap
+# attached (Discord hosts it, so the reader's HTTP server need not be public)
+# and the title linking straight to the replay.
+
+COLOUR_TEAM1 = 0x4A8FE7
+COLOUR_TEAM2 = 0xE04F4F
+COLOUR_DRAW = 0x8A8F98
+
+
+def _hms(sec: Any) -> Optional[str]:
+    if not isinstance(sec, (int, float)) or sec < 0:
+        return None
+    s = int(sec)
+    return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
+
+
+def round_url(server_url: Optional[str], rec_id: Optional[str]) -> Optional[str]:
+    """The replay page for one recording. The viewer is looked up by the
+    recording's filename stem, not the match id."""
+    if not server_url or not rec_id:
+        return None
+    return (f"{server_url.rstrip('/')}/?mode=replay&id="
+            f"{urllib.parse.quote(rec_id)}")
+
+
+def is_seed(m: dict) -> bool:
+    """Seed rounds fill the server; nobody wants their result in a channel."""
+    return (str(m.get("game_mode") or "").lower() == "seed"
+            or " seed " in f" {str(m.get('layer_name') or '').lower()} ")
+
+
+def faction_label(fid: Any, *, unit: bool = False) -> Optional[str]:
+    """"AFU_LO_Motorized" -> "AFU" (or "AFU · Motorized"), as the viewer
+    shows it."""
+    if not fid:
+        return None
+    parts = str(fid).split("_")
+    if unit and len(parts) > 2:
+        return f"{parts[0]} · {parts[-1]}"
+    return parts[0] or str(fid)
+
+
+def build_round_embed(m: dict, *, url: Optional[str] = None,
+                      has_map: bool = False,
+                      server_label: Optional[str] = None) -> dict:
+    """One finished match as a Discord embed. Pure - this is the part worth
+    testing."""
+    f1, f2 = m.get("team1_faction"), m.get("team2_faction")
+    t1 = faction_label(f1, unit=True) or "Team 1"
+    t2 = faction_label(f2, unit=True) or "Team 2"
+    win = m.get("winner_team")
+    if win == 1:
+        title = f"\U0001F3C6  {faction_label(f1) or 'Team 1'} win"
+        colour = COLOUR_TEAM1
+    elif win == 2:
+        title = f"\U0001F3C6  {faction_label(f2) or 'Team 2'} win"
+        colour = COLOUR_TEAM2
+    else:
+        title, colour = "\U0001F91D  Draw", COLOUR_DRAW
+
+    embed: dict[str, Any] = {"title": title[:250], "color": colour}
+    if url:
+        embed["url"] = url
+
+    layer = str(m.get("layer_name") or m.get("map_name") or "unknown layer")
+    head = f"**{layer}**"
+    mode = m.get("game_mode")
+    if mode and str(mode) not in layer:
+        head += f"  ·  {mode}"
+    desc = [head]
+    if url:
+        desc.append(f"[Watch the replay]({url})")
+    embed["description"] = "\n".join(desc)[:3900]
+
+    def tickets(n: Any) -> str:
+        return f"{n} tickets" if isinstance(n, int) else "—"
+
+    fields = [
+        {"name": (("\U0001F947 " if win == 1 else "") + str(t1))[:250],
+         "value": tickets(m.get("team1_tickets")), "inline": True},
+        {"name": (("\U0001F947 " if win == 2 else "") + str(t2))[:250],
+         "value": tickets(m.get("team2_tickets")), "inline": True},
+        # An empty third column keeps the teams on their own row.
+        {"name": "​", "value": "​", "inline": True},
+    ]
+    dur = _hms(m.get("duration_sec"))
+    if dur:
+        fields.append({"name": "Duration", "value": dur, "inline": True})
+    if m.get("peak_players"):
+        fields.append({"name": "Players", "value": str(m["peak_players"]),
+                       "inline": True})
+    if server_label:
+        fields.append({"name": "Server", "value": str(server_label)[:60],
+                       "inline": True})
+    embed["fields"] = fields
+
+    if has_map:
+        embed["image"] = {"url": "attachment://map.webp"}
+    ts = m.get("ended_at")
+    if isinstance(ts, (int, float)):
+        embed["timestamp"] = (time.strftime("%Y-%m-%dT%H:%M:%S",
+                                            time.gmtime(ts)) + "Z")
+    return embed
+
+
+def multipart(payload: dict, file_name: str, file_bytes: bytes,
+              file_type: str = "image/webp") -> tuple[bytes, str]:
+    """`payload_json` plus one file, the way Discord takes attachments."""
+    boundary = "sqreader" + uuid.uuid4().hex
+    b = boundary.encode()
+    body = (b"--" + b + b"\r\n"
+            b'Content-Disposition: form-data; name="payload_json"\r\n'
+            b"Content-Type: application/json\r\n\r\n"
+            + json.dumps(payload).encode("utf-8") + b"\r\n"
+            + b"--" + b + b"\r\n"
+            + (f'Content-Disposition: form-data; name="files[0]"; '
+               f'filename="{file_name}"\r\n').encode()
+            + f"Content-Type: {file_type}\r\n\r\n".encode()
+            + file_bytes + b"\r\n--" + b + b"--\r\n")
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+class RoundNotifier:
+    """Posts each finished match to a Discord webhook, off the reader's
+    thread. `offer` is the StatsStore finalize hook: it only queues the id."""
+
+    def __init__(self, webhook_url: str, *, db_path: Path,
+                 recordings_dir: Optional[Path] = None,
+                 sqmaps_dir: Optional[Path] = None,
+                 server_url: Optional[str] = None,
+                 server_label: Optional[str] = None,
+                 timeout: float = 15.0) -> None:
+        self._url = webhook_url
+        self._db = db_path
+        self.recordings_dir = recordings_dir
+        self.sqmaps_dir = sqmaps_dir
+        self._server_url = server_url
+        self._label = server_label
+        self._timeout = timeout
+        self._q: "queue.Queue[str]" = queue.Queue(maxsize=20)
+        self._stop = threading.Event()
+        self._layers: Optional[dict] = None
+        self._worker = threading.Thread(target=self._run, name="round-notify",
+                                        daemon=True)
+        self._worker.start()
+
+    def offer(self, match_id: str) -> None:
+        try:
+            self._q.put_nowait(match_id)
+        except queue.Full:
+            log.warning("round webhook backed up, dropped a result")
+
+    def close(self, drain_sec: float = 5.0) -> None:
+        self._stop.set()
+        self._worker.join(timeout=drain_sec)
+
+    def _run(self) -> None:
+        while not self._stop.is_set() or not self._q.empty():
+            try:
+                mid = self._q.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                self.send(mid)
+            except Exception:
+                log.exception("round notify failed")
+
+    def send(self, match_id: str) -> None:
+        from ..stats import match_detail
+        m = match_detail(self._db, match_id)
+        # winner_team stays NULL unless the end was confirmed: a restart or a
+        # vanished match is not a result worth announcing.
+        if not m or m.get("winner_team") is None or is_seed(m):
+            return
+        url = round_url(self._server_url, self._recording_id(match_id))
+        map_file = self._map_file(m.get("layer_name"))
+        embed = build_round_embed(m, url=url, has_map=map_file is not None,
+                                  server_label=self._label)
+        payload = {"embeds": [embed]}
+        if map_file is not None:
+            data, ctype = multipart(payload, "map.webp", map_file.read_bytes())
+        else:
+            data = json.dumps(payload).encode("utf-8")
+            ctype = "application/json"
+        _post(self._url, data, ctype, self._stop, self._timeout)
+
+    def _recording_id(self, match_id: str) -> Optional[str]:
+        # The recorder finalizes before stats in the same tick, so the
+        # sidecar is already on disk by the time this runs.
+        if not self.recordings_dir or not self.recordings_dir.is_dir():
+            return None
+        # ponytail: scans the 50 newest sidecars; index them if that misses.
+        metas = sorted(self.recordings_dir.glob("*.meta.json"),
+                       key=lambda p: p.stat().st_mtime, reverse=True)[:50]
+        for p in metas:
+            try:
+                meta = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if meta.get("matchId") == match_id:
+                return meta.get("id") or p.name[:-len(".meta.json")]
+        return None
+
+    def _map_file(self, layer: Optional[str]) -> Optional[Path]:
+        if not layer or not self.sqmaps_dir:
+            return None
+        if self._layers is None:
+            from ..squad.metadata import Metadata
+            self._layers = Metadata.load().layer_bounds
+        texture = (self._layers.get(layer) or {}).get("texture")
+        if not texture:
+            return None
+        from ..httpsrv import _resolve_sqmap
+        p = _resolve_sqmap(self.sqmaps_dir, texture)
+        # The embed points at attachment://map.webp, so only a webp will do.
+        return p if p is not None and p.suffix.lower() == ".webp" else None
+
+__all__ = ["DiscordNotifier", "RoundNotifier", "build_round_embed",
+           "multipart", "round_url", "build_embed", "colour_for", "format_evidence",
            "mark_for", "match_clock", "replay_url", "FOOTER_TEXT",
            "QUEUE_MAX", "MAX_EMBEDS"]
