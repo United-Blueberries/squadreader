@@ -415,7 +415,7 @@ function badgeTexture(url: string, color: string, emphasis: boolean,
 
 // ── Deaths + wrecks, keyed off replay time so pause/scrub/speed just work ──
 const DEATH_ICON = "./icons/scoreboard/deaths.png";
-const GRAVE_MS = 30_000, BLAST_MS = 1800;
+const BLAST_MS = 1800;
 const pKey = (p: Player) => p.eosId ?? (p.playerId != null ? `pid:${p.playerId}` : `name:${p.name ?? "?"}`);
 const ts = (f: Snapshot) => Date.parse(f.timestamp) || 0;
 interface Death { t: number; player: Player; x: number; y: number; z: number | null }
@@ -931,14 +931,11 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
     habFadeAttr.setUsage(THREE.DynamicDrawUsage);
     deployMeshes.hab.geometry.setAttribute("aFade", habFadeAttr);
     patchFade(deployMeshes.hab.material as THREE.MeshStandardMaterial, false);
-    const badges = new Map<string, THREE.Sprite>();
-    const badgeGroup = new THREE.Group();
-    scene.add(badgeGroup);
     // What each instance index stands for, for picking.
     let drawnPlayers: Player[] = [];
     const drawnVehicles = new Map<THREE.InstancedMesh, Vehicle[]>();
     let drawnSnap: Snapshot | null = null;
-    if (import.meta.env.DEV) Object.assign(window, { __map3d: { soldierMeshes, vehMeshes, camera, badgeGroup, store: useViewerStore,
+    if (import.meta.env.DEV) Object.assign(window, { __map3d: { soldierMeshes, vehMeshes, camera, scene, store: useViewerStore,
       buildingFades: () => buildingFades } });
 
     let terrain: Terrain | null = null;
@@ -1065,17 +1062,6 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
       if (!terrain || !drawnSnap) return null;
       ndc.set((cssX / canvas.clientWidth) * 2 - 1, -(cssY / canvas.clientHeight) * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
-      // Overlapping badges (an ammo crate beside its HAB): the one whose centre is
-      // nearest the cursor wins, the top-drawn one on a tie.
-      let best: THREE.Object3D | null = null, bestD = Infinity;
-      for (const h of raycaster.intersectObjects(badgeGroup.children, false)) {
-        // A grave that has nearly faded out shouldn't steal the click.
-        if ((h.object as THREE.Sprite).material.opacity < 0.3) continue;
-        const v = h.object.position.clone().project(camera);
-        const d = Math.hypot(v.x - ndc.x, v.y - ndc.y) - h.object.renderOrder * 1e-6;
-        if (d < bestD) { bestD = d; best = h.object; }
-      }
-      if (best) return { d2: 0, hit: best.userData.hit as BadgeHit };
       // Overlapping badges (an ammo crate beside its HAB): the bigger badge wins.
       const iconHit = raycaster.intersectObjects(iconGroup.children, false)
         .filter((i) => i.instanceId != null)
@@ -1377,9 +1363,13 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
           if (!so?.position || !present(so) || so.attached || isAdminCam(so)) continue;
           if (isDowned(so)) {
             if (drawnBodies.length >= MAX_PLAYERS) continue;
-            // The capsule centre sits ~0.8 m up; a body lies on the ground.
+            // The capsule centre sits ~0.8 m up; a body lies on the ground. A
+            // downed capsule is already low, so never go below the terrain mesh
+            // (or the puck sinks out of sight); upper floors keep their height.
+            const [bx, bz] = toWorld(terrain, so.position.x, so.position.y);
+            const bodyZ = Math.max((so.position.z ?? -Infinity) - 70, groundSmooth(terrain, bx, bz) * 100 + 5);
             const k = place(bodies, drawnBodies.length, terrain, so.position.x, so.position.y,
-                            so.position.z != null ? so.position.z - 70 : null, so.yaw, pl.teamId, 120,
+                            bodyZ, so.yaw, pl.teamId, 120,
                             tmpCol.set(teamColor(pl.teamId)).lerp(downDark, 0.7));
             // A white X lying on the puck.
             p.y += 0.32 * k;
@@ -1470,54 +1460,27 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
         // A vehicle's origin is at its wheels; test a point inside the hull.
         for (const list of drawnVehicles.values()) for (const v of list) pushUnit(v.position!, 1);
         // Badges: FOB radios, HABs, ammo/repair/mortars/mines, rallies.
-        const seen = new Set<string>();
-        // Constant on-screen size: px → sprite scale for sizeAttenuation:false.
+        // Constant on-screen size: px → world size per metre of camera distance.
         const pxScale = (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, canvas.clientHeight);
-        const badge = (id: string, url: string | null, pos: { x: number; y: number; z: number | null } | null,
+        const badge = (url: string | null, pos: { x: number; y: number; z: number | null } | null,
                        color: string, emphasis: boolean, label: string | null,
-                       px: number, hit: BadgeHit, opts: { opacity?: number; texture?: THREE.Texture | null } = {}) => {
+                       px: number, hit: BadgeHit, opts: { texture?: THREE.Texture | null } = {}) => {
           if ((!url && !("texture" in opts)) || !pos) return;
           const tex = "texture" in opts ? opts.texture ?? null : badgeTexture(url!, color, emphasis, label);
           if (!tex) { invalidate = true; return; }
           const [bx, bz] = toWorld(terrain!, pos.x, pos.y);
-          if (opts.opacity == null) {
-            // One draw call per picture instead of one per badge: a sprite each
-            // cost ~25 us of CPU, and a match carries 100+ badges and markers.
-            // Scaled with distance to keep a constant on-screen size.
-            const img = tex.image as HTMLCanvasElement;
-            p.set(bx, (pos.z != null ? pos.z / 100 : groundAt(terrain!, bx, bz)) + BADGE_LIFT, bz);
-            const wpx = px * pxScale * camera.position.distanceTo(p), hpx = wpx * img.height / img.width;
-            // Keep the disc centre on the anchor; a label pill hangs below it.
-            camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
-            p.addScaledVector(camUp, -(hpx - Math.min(hpx, wpx)) / 2);
-            addIcon(`b|${tex.uuid}`, tex, m4.compose(p, camera.quaternion, sc.set(wpx, hpx, 1)),
-                    hit, white, 10 + px);
-            if (hit.type !== "marker") unitXYZ.push(bx, p.y - BADGE_LIFT + 0.3, bz);
-            return;
-          }
-          let sp = badges.get(id);
-          if (!sp) {
-            // Map markers, not scenery: drawn over trees and hills like the 2D map.
-            sp = new THREE.Sprite(new THREE.SpriteMaterial(
-              { sizeAttenuation: false, depthTest: false, depthWrite: false, toneMapped: false }));
-            badges.set(id, sp);
-            badgeGroup.add(sp);
-          }
-          if (sp.material.map !== tex) {
-            sp.material.map = tex;
-            sp.material.needsUpdate = true;
-            const img = tex.image as HTMLCanvasElement;
-            sp.center.set(0.5, 1 - Math.min(1, img.width / 2 / img.height));   // anchor = disc centre
-          }
+          // One draw call per picture instead of one per badge: a sprite each
+          // cost ~25 us of CPU, and a match carries 100+ badges and markers.
+          // Scaled with distance to keep a constant on-screen size.
           const img = tex.image as HTMLCanvasElement;
-          sp.scale.set(px * pxScale, px * pxScale * img.height / img.width, 1);
-          const [X, Z] = toWorld(terrain!, pos.x, pos.y);
-          sp.position.set(X, (pos.z != null ? pos.z / 100 : groundAt(terrain!, X, Z)) + BADGE_LIFT, Z);
-          sp.userData.hit = hit;
-          sp.material.opacity = opts.opacity ?? 1;
-          sp.renderOrder = 10 + px;   // bigger (FOB > HAB > rally > crates) on top
-          seen.add(id);
-          unitXYZ.push(X, sp.position.y - BADGE_LIFT + 0.3, Z);
+          p.set(bx, (pos.z != null ? pos.z / 100 : groundAt(terrain!, bx, bz)) + BADGE_LIFT, bz);
+          const wpx = px * pxScale * camera.position.distanceTo(p), hpx = wpx * img.height / img.width;
+          // Keep the disc centre on the anchor; a label pill hangs below it.
+          camUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
+          p.addScaledVector(camUp, -(hpx - Math.min(hpx, wpx)) / 2);
+          addIcon(`b|${tex.uuid}`, tex, m4.compose(p, camera.quaternion, sc.set(wpx, hpx, 1)),
+                  hit, white, 10 + px);
+          if (hit.type !== "marker") unitXYZ.push(bx, p.y - BADGE_LIFT + 0.3, bz);
         };
         for (const m of Object.values(deployMeshes)) drawnDeploys.set(m, []);
         const model = (k: DeployMeshKind, pos: { x: number; y: number; z: number | null } | null,
@@ -1557,7 +1520,7 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
           const hit: BadgeHit = { type: "deployable", e: d };
           const dk = deployKind3d(d);
           // Helipads are flat ground markings: badge only, no model.
-          badge("d" + d.id, deployableIconUrl(d), d.position, teamColor(d.team),
+          badge(deployableIconUrl(d), d.position, teamColor(d.team),
                 !!(d.isFob || isHab), null, d.isFob ? 30 : isHab ? 28 : 22, hit);
           if (dk !== "helipad") model(dk, d.position, d.yaw, d.team, hit);
         }
@@ -1571,7 +1534,7 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
             overlay(`rally-fill:${rp.id}`, sg, () => drapedDisc(terrain!, X, Z, 30), overlayMat(rc, 0.14));
             overlay(`rally-ring:${rp.id}`, sg, () => drapedRing(terrain!, X, Z, 29.6, 30.4, true), overlayMat(rc, 0.9));
           }
-          badge("r" + rp.id, RALLY_ICON, rp.position,
+          badge(RALLY_ICON, rp.position,
                 rp.spawningEnabled ? teamColor(rp.squadTeamId ?? rp.team) : "#5a5a5a",
                 false, rp.squadId != null ? String(rp.squadId) : "?", 26, hit);
           model("rally", rp.position, null, rp.squadTeamId ?? rp.team, hit,
@@ -1594,7 +1557,7 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
                     overlayMat(shaft, 0.85));
             continue;
           }
-          badge("m" + m.id, null, m.position, mc, false, null, 24, hit, { texture: markerTexture(m, mc) });
+          badge(null, m.position, mc, false, null, 24, hit, { texture: markerTexture(m, mc) });
           const placer = lines < MAX_LINES ? actionMarkerPlacer(m, shownPlayers) : null;
           if (placer) {
             const sp = placer.soldier!.position!, [AX, AZ] = at(sp), [BX, BZ] = at(m.position);
@@ -1612,12 +1575,13 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
         for (const [key, o] of overlays) if (!ovSeen.has(key)) {
           o.mesh.geometry.dispose(); overlayGroup.remove(o.mesh); overlays.delete(key);
         }
-        for (const d of L.players ? events.deaths : []) {
-          const age = nowMs - d.t;
-          if (age < 0 || age > GRAVE_MS) continue;
-          badge(`g${pKey(d.player)}@${d.t}`, DEATH_ICON, d, "#4a505a", false, null, 18,
-                { type: "player", e: d.player }, { opacity: 1 - age / GRAVE_MS });
-        }
+        // Graves (gave up / bled out) stay until that player is back on the
+        // map: respawned, or downed again elsewhere. Only the latest one counts.
+        const graves = new Map<string, Death>();
+        if (L.players) for (const d of events.deaths) if (d.t <= nowMs) graves.set(pKey(d.player), d);
+        for (const pl of snap.players ?? []) if (pl.soldier && present(pl.soldier)) graves.delete(pKey(pl));
+        for (const d of graves.values())
+          badge(DEATH_ICON, d, "#4a505a", false, null, 18, { type: "player", e: d.player });
         lap("markers+graves");
         // Explosions: a fireball for BLAST_MS from the frame HP hit zero.
         const fxSeen = new Set<string>();
@@ -1660,9 +1624,6 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
         }
         for (const [key, o] of fxPool) if (!fxSeen.has(key)) {
           fxGroup.remove(o); (o.material as THREE.Material).dispose(); fxPool.delete(key);
-        }
-        for (const [id, sp] of badges) if (!seen.has(id)) {
-          badgeGroup.remove(sp); sp.material.dispose(); badges.delete(id);
         }
         lap("fx");
         for (const c of cullTiles)
@@ -1855,7 +1816,7 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
         loadMs: { terrain: Math.round(terrainMs), propsAndTrees: Math.round(propsMs) },
         scene: { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures,
                  programs: renderer.info.programs?.length ?? 0, treeTiles: vegTiles.length,
-                 badgeSprites: badges.size, groundOverlays: overlays.size, iconLayers: iconLayers.size,
+                 groundOverlays: overlays.size, iconLayers: iconLayers.size,
                  markers: drawnSnap?.markers?.length ?? 0,
                  jsHeapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : null },
         shots,

@@ -41,7 +41,7 @@ Default without the variable is a local agent on `http://127.0.0.1:8080`.
 ## Debug hooks (dev server only)
 
 - `window.__map3d` (3D view, `import.meta.env.DEV` only): `store` (the live
-  zustand store), `camera`, `soldierMeshes`, `vehMeshes`, `badgeGroup`,
+  zustand store), `camera`, `soldierMeshes`, `vehMeshes`, `scene`,
   `buildingFades()`.
 - Read state through `window.__map3d.store.getState()`. Do NOT
   `await import('/src/state/viewerStore.ts')` from the console: after any hot
