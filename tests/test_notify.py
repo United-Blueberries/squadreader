@@ -305,3 +305,79 @@ def test_one_oversized_embed_is_sent_alone_rather_than_dropped():
     huge = {"title": "t", "description": "d" * 9000}
     chunks = split_by_size([huge])
     assert chunks == [[huge]]
+
+
+# --- round results ----------------------------------------------------------
+
+from sqreader.plugins.notify import (  # noqa: E402
+    COLOUR_DRAW, COLOUR_TEAM1, build_round_embed, multipart, round_url,
+)
+
+
+def _match(**kw):
+    m = {"match_id": "m1", "layer_name": "Narva AAS v1", "game_mode": "AAS",
+         "winner_team": 1, "team1_faction": "USA", "team2_faction": "RGF",
+         "team1_tickets": 212, "team2_tickets": 0, "duration_sec": 3725,
+         "peak_players": 98, "ended_at": 1_760_000_000}
+    m.update(kw)
+    return m
+
+
+def test_a_round_post_says_who_won_and_links_the_replay():
+    url = round_url("https://replays.example.com/", "2026-10-18_Narva_x")
+    assert url == "https://replays.example.com/?mode=replay&id=2026-10-18_Narva_x"
+    e = build_round_embed(_match(), url=url, has_map=True, server_label="eu-1")
+    assert "USA win" in e["title"] and e["color"] == COLOUR_TEAM1
+    assert e["url"] == url and url in e["description"]
+    assert e["image"] == {"url": "attachment://map.webp"}
+    f = _fields(e)
+    assert f["\U0001F947 USA"] == "212 tickets" and f["RGF"] == "0 tickets"
+    assert f["Duration"] == "1:02:05" and f["Players"] == "98"
+    assert f["Server"] == "eu-1" and "footer" not in e
+
+
+def test_factions_read_like_the_viewer_shows_them():
+    e = build_round_embed(_match(team1_faction="AFU_LO_Motorized",
+                                 team2_faction="RGF_LO_Motorized"))
+    assert "AFU win" in e["title"]
+    assert "\U0001F947 AFU · Motorized" in _fields(e)
+    assert "RGF · Motorized" in _fields(e)
+
+
+def test_without_server_url_the_link_goes_to_squadreader_com(tmp_path, monkeypatch):
+    sent = {}
+    monkeypatch.setattr("sqreader.stats.match_detail", lambda db, mid: _match())
+    monkeypatch.setattr(notify, "_post",
+                        lambda url, data, ctype, stop, t: sent.update(data=data))
+    n = notify.RoundNotifier("https://hook", db_path=tmp_path / "x.db")
+    try:
+        n.send("a0faf3a3-c368-47fb-8291-94178c907787")
+    finally:
+        n.close()
+    embed = json.loads(sent["data"])["embeds"][0]
+    assert embed["url"] == ("https://squadreader.com/replay/?mode=replay"
+                            "&id=a0faf3a3-c368-47fb-8291-94178c907787")
+
+
+def test_seed_rounds_are_not_announced():
+    assert notify.is_seed(_match(game_mode="Seed"))
+    assert notify.is_seed(_match(game_mode=None,
+                                 layer_name="Sumari Bala Seed v1"))
+    assert not notify.is_seed(_match())
+
+
+def test_a_draw_without_map_or_link_still_posts_cleanly():
+    e = build_round_embed(_match(winner_team=0, team1_faction=None))
+    assert "Draw" in e["title"] and e["color"] == COLOUR_DRAW
+    assert "url" not in e and "image" not in e
+    assert "Team 1" in _fields(e)
+    assert round_url(None, "x") is None and round_url("https://a", None) is None
+
+
+def test_the_map_rides_along_as_an_attachment():
+    body, ctype = multipart({"embeds": [{"title": "t"}]}, "map.webp", b"RIFFxx")
+    boundary = ctype.split("boundary=")[1].encode()
+    parts = body.split(b"--" + boundary)
+    assert b'name="payload_json"' in parts[1] and b'"title": "t"' in parts[1]
+    assert b'name="files[0]"; filename="map.webp"' in parts[2]
+    assert parts[2].endswith(b"RIFFxx\r\n") and parts[-1] == b"--\r\n"

@@ -99,6 +99,15 @@ DEFAULTS: dict[str, Any] = {
     # "https://squadreader.com". Without it an alert still arrives, just
     # without a way to go and look at it.
     "alert_replay_base": None,
+
+    # Where to post each round's result (winner, tickets, minimap, replay
+    # link) when a match ends. A Discord webhook URL, or None for off. Same
+    # credential rules as `alert_webhook`.
+    "round_webhook": None,
+    # Public root of this sqreader site, e.g. "https://replays.example.com".
+    # Round posts link to `<server_url>/?mode=replay&id=<recording>`; without
+    # it they link to squadreader.com/replay/?mode=replay&id=<match id>.
+    "server_url": None,
 }
 
 _cache: dict[str, Any] | None = None
