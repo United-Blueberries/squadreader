@@ -22,6 +22,98 @@ import type { RallyPoint, Snapshot, ViewState } from "../state/types";
 import { burnedAt, ghostRally, type RallyRecord } from "../state/rallyBurns";
 import type { SelectedInfo } from "../state/viewerStore";
 
+// The frame to show right now: live renders a fixed delay behind the newest
+// snapshot, replay interpolates around the playhead. Shared by the 2D canvas
+// and the 3D view so both draw the same instant.
+export function displaySnapshot(s: ReturnType<typeof useViewerStore.getState>,
+                                lastRenderClockRef: { current: number }): Snapshot | null {
+  const cur = s.curSnap;
+  if (s.mode === "live") {
+    // Render a FIXED RENDER_DELAY_MS (~6s ≈ 3 ticks) in the PAST,
+    // interpolating between the two buffered frames that bracket the
+    // render clock. Both frames have already arrived, so interpolation
+    // never overruns the newest frame into a dead hold even if the
+    // backend stalls for a tick or two — this is what removes the
+    // periodic ~0.5s freeze AND survives multi-tick backend hiccups.
+    const buf = s.snapBuffer;
+    // Fixed delay (see RENDER_DELAY_MS) + a belt-and-suspenders monotonic
+    // clamp so the render clock can never regress. Decoupling from the
+    // EMA is what removes the periodic hitch AND the jitter time-warp.
+    const renderClock = Math.max(
+      performance.now() - RENDER_DELAY_MS,
+      lastRenderClockRef.current,
+    );
+    lastRenderClockRef.current = renderClock;
+    let a: { snap: Snapshot; t: number } | null = null;
+    let b: { snap: Snapshot; t: number } | null = null;
+    for (let i = buf.length - 1; i >= 1; i--) {
+      if (buf[i - 1].t <= renderClock && renderClock <= buf[i].t) {
+        a = buf[i - 1]; b = buf[i]; break;
+      }
+    }
+    if (a && b) {
+      const span = Math.max(1, b.t - a.t);
+      const t = (renderClock - a.t) / span;
+      // Real per-pair interval as tickMs so the teleport guard (and
+      // the attached-soldier vehicle threshold) scale correctly.
+      return lerpSnap(a.snap, b.snap, t, span);
+    } else if (buf.length) {
+      // Underrun: renderClock is before the oldest frame (just
+      // connected) or after the newest (a genuine >DELAY stall).
+      // Hold the nearest real frame — a brief micro-hold, never a jump.
+      return renderClock < buf[0]!.t
+        ? buf[0]!.snap : buf[buf.length - 1]!.snap;
+    } else {
+      return cur;
+    }
+  } else {
+    // Replay: interpolate between the two recorded frames bracketing the
+    // continuous playhead (published by the playback engine), so motion
+    // is smooth at 60fps instead of snapping every ~2s recorded frame —
+    // the same fix as the live path, just driven by the scrub clock.
+    const r = s.replay;
+    const frames = r.frames;
+    if (replayClock.valid && frames.length) {
+      // currentIdx is maintained as the largest frame whose timestamp is
+      // <= the playhead, so [i, i+1] brackets it.
+      const i = Math.max(0, Math.min(frames.length - 1, r.currentIdx));
+      const a = frames[i];
+      const b = frames[i + 1];
+      if (a && b) {
+        const ta = Date.parse(a.timestamp) || 0;
+        const tb = Date.parse(b.timestamp) || 0;
+        const span = Math.max(1, tb - ta);
+        const alpha = Math.max(0, Math.min(1, (replayClock.ms - ta) / span));
+        if (alpha <= 0) {
+          // Paused on a boundary → show frame `a` verbatim.
+          return a;
+        } else {
+          // Interpolate entity POSITIONS a→b for smooth motion, but keep
+          // every DISCRETE field (markers, deployables, rallies, spawners,
+          // gameState, …) from the frame the playhead is IN (`a`).
+          // lerpSnap bases those on `cur` (= b, the NEXT frame), so a
+          // marker placed on frame b would show while playing but vanish
+          // the instant you pause (which shows `a`) — the reported
+          // "markers disappear when paused" bug. Grafting a's discrete
+          // state onto the interpolated entities keeps play == pause.
+          const interp = lerpSnap(a, b, alpha, span);
+          return interp ? {
+            ...a,
+            players: interp.players,
+            vehicles: interp.vehicles,
+            projectiles: interp.projectiles,
+            captureZones: interp.captureZones,
+          } : a;
+        }
+      } else {
+        return a ?? cur;
+      }
+    } else {
+      return cur;
+    }
+  }
+}
+
 interface Props {
   onHover: (hit: Hit | null, cssX: number, cssY: number) => void;
   onLeave: () => void;
@@ -161,91 +253,7 @@ export function MapCanvas({ onHover, onLeave, onClick }: Props) {
           }
           lastArRef.current = ar;
         }
-        let display: Snapshot | null;
-        if (s.mode === "live") {
-          // Render a FIXED RENDER_DELAY_MS (~6s ≈ 3 ticks) in the PAST,
-          // interpolating between the two buffered frames that bracket the
-          // render clock. Both frames have already arrived, so interpolation
-          // never overruns the newest frame into a dead hold even if the
-          // backend stalls for a tick or two — this is what removes the
-          // periodic ~0.5s freeze AND survives multi-tick backend hiccups.
-          const buf = s.snapBuffer;
-          // Fixed delay (see RENDER_DELAY_MS) + a belt-and-suspenders monotonic
-          // clamp so the render clock can never regress. Decoupling from the
-          // EMA is what removes the periodic hitch AND the jitter time-warp.
-          const renderClock = Math.max(
-            performance.now() - RENDER_DELAY_MS,
-            lastRenderClockRef.current,
-          );
-          lastRenderClockRef.current = renderClock;
-          let a: { snap: Snapshot; t: number } | null = null;
-          let b: { snap: Snapshot; t: number } | null = null;
-          for (let i = buf.length - 1; i >= 1; i--) {
-            if (buf[i - 1].t <= renderClock && renderClock <= buf[i].t) {
-              a = buf[i - 1]; b = buf[i]; break;
-            }
-          }
-          if (a && b) {
-            const span = Math.max(1, b.t - a.t);
-            const t = (renderClock - a.t) / span;
-            // Real per-pair interval as tickMs so the teleport guard (and
-            // the attached-soldier vehicle threshold) scale correctly.
-            display = lerpSnap(a.snap, b.snap, t, span);
-          } else if (buf.length) {
-            // Underrun: renderClock is before the oldest frame (just
-            // connected) or after the newest (a genuine >DELAY stall).
-            // Hold the nearest real frame — a brief micro-hold, never a jump.
-            display = renderClock < buf[0]!.t
-              ? buf[0]!.snap : buf[buf.length - 1]!.snap;
-          } else {
-            display = cur;
-          }
-        } else {
-          // Replay: interpolate between the two recorded frames bracketing the
-          // continuous playhead (published by the playback engine), so motion
-          // is smooth at 60fps instead of snapping every ~2s recorded frame —
-          // the same fix as the live path, just driven by the scrub clock.
-          const r = s.replay;
-          const frames = r.frames;
-          if (replayClock.valid && frames.length) {
-            // currentIdx is maintained as the largest frame whose timestamp is
-            // <= the playhead, so [i, i+1] brackets it.
-            const i = Math.max(0, Math.min(frames.length - 1, r.currentIdx));
-            const a = frames[i];
-            const b = frames[i + 1];
-            if (a && b) {
-              const ta = Date.parse(a.timestamp) || 0;
-              const tb = Date.parse(b.timestamp) || 0;
-              const span = Math.max(1, tb - ta);
-              const alpha = Math.max(0, Math.min(1, (replayClock.ms - ta) / span));
-              if (alpha <= 0) {
-                // Paused on a boundary → show frame `a` verbatim.
-                display = a;
-              } else {
-                // Interpolate entity POSITIONS a→b for smooth motion, but keep
-                // every DISCRETE field (markers, deployables, rallies, spawners,
-                // gameState, …) from the frame the playhead is IN (`a`).
-                // lerpSnap bases those on `cur` (= b, the NEXT frame), so a
-                // marker placed on frame b would show while playing but vanish
-                // the instant you pause (which shows `a`) — the reported
-                // "markers disappear when paused" bug. Grafting a's discrete
-                // state onto the interpolated entities keeps play == pause.
-                const interp = lerpSnap(a, b, alpha, span);
-                display = interp ? {
-                  ...a,
-                  players: interp.players,
-                  vehicles: interp.vehicles,
-                  projectiles: interp.projectiles,
-                  captureZones: interp.captureZones,
-                } : a;
-              }
-            } else {
-              display = a ?? cur;
-            }
-          } else {
-            display = cur;
-          }
-        }
+        const display = displaySnapshot(s, lastRenderClockRef);
         const shown = display ?? cur;
         // FOLLOW camera: centre on the tracked player in the SHOWN frame so
         // camera + icon agree. No store write — computed per frame.

@@ -1,0 +1,4 @@
+sky.hdr - "Kloofendal 43d Clear (Pure Sky)" HDRI, 1k, by Poly Haven
+(https://polyhaven.com/a/kloofendal_43d_clear_puresky).
+Licensed CC0 (public domain) - https://polyhaven.com/license
+Same sky SquadCalc's 3D view uses.

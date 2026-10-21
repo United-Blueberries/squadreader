@@ -19,6 +19,8 @@ export function TopBar() {
   const replayId = useViewerStore((s) => s.replay.id);
   const timelineVisible = useViewerStore((s) => s.timelineVisible);
   const toggleTimeline = useViewerStore((s) => s.toggleTimeline);
+  const view3d = useViewerStore((s) => s.view3d);
+  const toggleView3d = useViewerStore((s) => s.toggleView3d);
 
   // Rate + latency are derived display state, recomputed cheaply on each
   // store tick (player viewer is desktop, no need for memoization).
@@ -135,8 +137,13 @@ export function TopBar() {
                   onClick={() => toggleTimeline()}
                   title="Ticket-loss timeline (G)">Tickets</button>
         )}
-        <button onClick={() => resetView()}
-                title={`Fit the map (F) · zoom ${view.zoom.toFixed(1)}×`}>Fit</button>
+        <button className={view3d ? "on" : ""} onClick={() => toggleView3d()}
+                title="3D terrain view (SquadCalc)">3D</button>
+        {/* In 3D, Fit flies the camera back to the overview (Map3D listens). */}
+        <button onClick={() => view3d
+                  ? window.dispatchEvent(new Event("map3d-fit")) : resetView()}
+                title={view3d ? "Back to the overview (F)"
+                  : `Fit the map (F) · zoom ${view.zoom.toFixed(1)}×`}>Fit</button>
         <ClipRecorder />
         <SettingsMenu />
       </div>

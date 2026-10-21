@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-hosted",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "cwd": "${workspaceFolder}",
+      "env": { "SQREADER_BACKEND": "https://squadreader.united-blueberries.de" },
+      "port": 5173
+    }
+  ]
+}

@@ -301,6 +301,8 @@ interface Store {
   scoreboardClosedSquads: { 1: number[]; 2: number[] };
   // Ticket-timeline overlay (replay-only) — the match-long ticket-loss analysis.
   timelineVisible: boolean;
+  // POC: SquadCalc 3D terrain view instead of the 2D canvas (?view=3d).
+  view3d: boolean;
 
   // Map layer visibility — which entity families the canvas draws.
   layers: Record<LayerKey, boolean>;
@@ -360,13 +362,14 @@ interface Store {
   setScoreboardVisible(v: boolean): void;
   toggleScoreboardSquad(team: 1 | 2, sqId: number): void;
   toggleTimeline(): void;
+  toggleView3d(): void;
   setTimelineVisible(v: boolean): void;
   toggleLayer(key: LayerKey): void;
   setTeamView(t: TeamView): void;
   resetView(): void;
 }
 
-export const useViewerStore = create<Store>((set) => ({
+export const useViewerStore = create<Store>((set, get) => ({
   mode: "home",
   status: "connecting",
   canLive: false,
@@ -398,6 +401,7 @@ export const useViewerStore = create<Store>((set) => ({
   killFeedIncaps: loadKillFeedIncaps(),
   scoreboardVisible: false,
   timelineVisible: false,
+  view3d: new URLSearchParams(window.location.search).get("view") === "3d",
   scoreboardClosedSquads: { 1: [], 2: [] },
   layers: loadLayers(),
   teamView: 0,
@@ -644,6 +648,13 @@ export const useViewerStore = create<Store>((set) => ({
   },
   toggleTimeline() {
     set((s) => ({ timelineVisible: !s.timelineVisible }));
+  },
+  toggleView3d() {
+    const on = !get().view3d;
+    const u = new URL(window.location.href);
+    if (on) u.searchParams.set("view", "3d"); else u.searchParams.delete("view");
+    window.history.replaceState(null, "", u);
+    set({ view3d: on });
   },
   setTimelineVisible(v) {
     set({ timelineVisible: v });

@@ -1,0 +1,48 @@
+{
+  "recording": "bench-fixture",
+  "frame": 20,
+  "map": "Gorodok",
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 (0x00002704) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "viewport": "1384x705",
+  "loadMs": {
+    "terrain": 1284,
+    "propsAndTrees": 2109
+  },
+  "scene": {
+    "geometries": 188,
+    "textures": 60,
+    "programs": 21,
+    "treeTiles": 256,
+    "jsHeapMB": 263
+  },
+  "shots": [
+    {
+      "name": "overview",
+      "medianMs": 10.5,
+      "p95Ms": 12.1,
+      "drawCalls": 270,
+      "triangles": 3694818
+    },
+    {
+      "name": "units-60m",
+      "medianMs": 9.4,
+      "p95Ms": 11.8,
+      "drawCalls": 145,
+      "triangles": 3088110
+    },
+    {
+      "name": "forest-ground",
+      "medianMs": 10.4,
+      "p95Ms": 12.1,
+      "drawCalls": 221,
+      "triangles": 3754662
+    },
+    {
+      "name": "playing-1x",
+      "medianMs": 9.9,
+      "p95Ms": 11.7,
+      "drawCalls": 145,
+      "triangles": 3088110
+    }
+  ]
+}

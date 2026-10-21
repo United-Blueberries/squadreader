@@ -1,0 +1,797 @@
+{
+ "AlBasrah": {
+  "url": "/img/maps/albasrah/",
+  "corner0": [
+   -2000,
+   -2000
+  ],
+  "corner1": [
+   2000,
+   2000
+  ],
+  "heightScale": 0.087813952,
+  "zOffset": 2,
+  "heightScale3D": 0.043029724,
+  "zOffset3D": 2
+ },
+ "Anvil": {
+  "url": "/img/maps/anvil/",
+  "corner0": [
+   -2040,
+   -2040
+  ],
+  "corner1": [
+   1020,
+   1020
+  ],
+  "heightScale": 0.226426712,
+  "zOffset": -71.5835,
+  "heightScale3D": 0.226426712,
+  "zOffset3D": -71.5835
+ },
+ "BlackCoast": {
+  "url": "/img/maps/blackcoast/",
+  "corner0": [
+   -2299,
+   -2127
+  ],
+  "corner1": [
+   2299,
+   2472
+  ],
+  "heightScale": 0.358381824,
+  "zOffset": -31.0188,
+  "heightScale3D": 0.358284579,
+  "zOffset3D": -0.9868
+ },
+ "Chora": {
+  "url": "/img/maps/chora/",
+  "corner0": [
+   -2464,
+   -2664
+  ],
+  "corner1": [
+   1600,
+   1400
+  ],
+  "heightScale": 0.982942589,
+  "zOffset": -793.5477,
+  "heightScale3D": 0.982942589,
+  "zOffset3D": -793.5477
+ },
+ "Fallujah": {
+  "url": "/img/maps/fallujah/",
+  "corner0": [
+   -1315,
+   -1545
+  ],
+  "corner1": [
+   1690,
+   1460
+  ],
+  "heightScale": 0.14797459,
+  "zOffset": -48.43,
+  "heightScale3D": 0.065334541,
+  "zOffset3D": -48.43
+ },
+ "FoolsRoad": {
+  "url": "/img/maps/foolsroad/",
+  "corner0": [
+   -1326,
+   -1326
+  ],
+  "corner1": [
+   448,
+   448
+  ],
+  "heightScale": 0.20168671,
+  "zOffset": -61.5903,
+  "heightScale3D": 0.205997796,
+  "zOffset3D": -63.789
+ },
+ "GooseBay": {
+  "url": "/img/maps/goosebay/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2015,
+   2015
+  ],
+  "heightScale": 0.274412178,
+  "zOffset": -245,
+  "heightScale3D": 0.227111487,
+  "zOffset3D": -245
+ },
+ "Gorodok": {
+  "url": "/img/maps/gorodok/",
+  "corner0": [
+   -2032,
+   -2032
+  ],
+  "corner1": [
+   2032,
+   2032
+  ],
+  "heightScale": 0.173697718,
+  "zOffset": -62.8744,
+  "heightScale3D": 0.126346801,
+  "zOffset3D": -62.8744
+ },
+ "Harju": {
+  "url": "/img/maps/harju/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2016,
+   2016
+  ],
+  "heightScale": 0.229927482,
+  "zOffset": -21.1422,
+  "heightScale3D": 0.124975537,
+  "zOffset3D": -0.2
+ },
+ "Jensen": {
+  "url": "/img/maps/jensen/",
+  "corner0": [
+   -2004,
+   -2004
+  ],
+  "corner1": [
+   2004,
+   2004
+  ],
+  "heightScale": 0.185722727,
+  "zOffset": -15.5078,
+  "heightScale3D": 0.089362846,
+  "zOffset3D": -15.5078
+ },
+ "Kamdesh": {
+  "url": "/img/maps/kamdesh/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2016,
+   2016
+  ],
+  "heightScale": 0.387570609,
+  "zOffset": 31.6808,
+  "heightScale3D": 0.387570609,
+  "zOffset3D": 31.6808
+ },
+ "Kohat": {
+  "url": "/img/maps/kohat/",
+  "corner0": [
+   -2300,
+   -2300
+  ],
+  "corner1": [
+   2317,
+   2317
+  ],
+  "heightScale": 0.750167993,
+  "zOffset": 9.4085,
+  "heightScale3D": 0.750167993,
+  "zOffset3D": 9.4085
+ },
+ "Kokan": {
+  "url": "/img/maps/kokan/",
+  "corner0": [
+   -1076,
+   -1076
+  ],
+  "corner1": [
+   1420,
+   1420
+  ],
+  "heightScale": 0.174065564,
+  "zOffset": -255,
+  "heightScale3D": 0.162908726,
+  "zOffset3D": -249.31
+ },
+ "Lashkar": {
+  "url": "/img/maps/lashkar/",
+  "corner0": [
+   -2167,
+   -2167
+  ],
+  "corner1": [
+   2167,
+   2167
+  ],
+  "heightScale": 0.321048558,
+  "zOffset": 1.9652,
+  "heightScale3D": 0.298333727,
+  "zOffset3D": 1.9652
+ },
+ "Logar": {
+  "url": "/img/maps/logar/",
+  "corner0": [
+   -881,
+   -1132
+  ],
+  "corner1": [
+   880,
+   629
+  ],
+  "heightScale": 0.248098348,
+  "zOffset": 4.1729,
+  "heightScale3D": 0.248098348,
+  "zOffset3D": 4.1729
+ },
+ "Manicouagan": {
+  "url": "/img/maps/manicouagan/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2015,
+   2015
+  ],
+  "heightScale": 0.403959641,
+  "zOffset": 38,
+  "heightScale3D": 0.403959641,
+  "zOffset3D": 38
+ },
+ "Mestia": {
+  "url": "/img/maps/mestia/",
+  "corner0": [
+   -1200,
+   -1100
+  ],
+  "corner1": [
+   1200,
+   1300
+  ],
+  "heightScale": 0.493831859,
+  "zOffset": -153.9385,
+  "heightScale3D": 0.493831859,
+  "zOffset3D": -153.9385
+ },
+ "Mutaha": {
+  "url": "/img/maps/mutaha/",
+  "corner0": [
+   -935,
+   -1140
+  ],
+  "corner1": [
+   1820,
+   1615
+  ],
+  "heightScale": 0.112586966,
+  "zOffset": -8.7821,
+  "heightScale3D": 0.060502473,
+  "zOffset3D": -7.043
+ },
+ "Narva": {
+  "url": "/img/maps/narva/",
+  "corner0": [
+   -1390,
+   -1402
+  ],
+  "corner1": [
+   1410,
+   1398
+  ],
+  "heightScale": 0.205154741,
+  "zOffset": -17.9298,
+  "heightScale3D": 0.123498984,
+  "zOffset3D": -17.9298
+ },
+ "Pacific": {
+  "url": "/img/maps/pacific/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2016,
+   2016
+  ],
+  "heightScale": 0.317704444,
+  "zOffset": -79.18,
+  "heightScale3D": 0.118174655,
+  "zOffset3D": 3.9
+ },
+ "Sanxian": {
+  "url": "/img/maps/sanxian/",
+  "corner0": [
+   -2300,
+   -2050
+  ],
+  "corner1": [
+   2300,
+   2550
+  ],
+  "heightScale": 0.233953671,
+  "zOffset": 0,
+  "heightScale3D": 0.11211708,
+  "zOffset3D": 0
+ },
+ "Skorpo": {
+  "url": "/img/maps/skorpo/",
+  "corner0": [
+   -3611,
+   -3293
+  ],
+  "corner1": [
+   3238,
+   3576
+  ],
+  "heightScale": 2.086916336,
+  "zOffset": -360.7172,
+  "heightScale3D": 1.955089913,
+  "zOffset3D": -293.4857
+ },
+ "Sumari": {
+  "url": "/img/maps/sumari/",
+  "corner0": [
+   -640,
+   -447
+  ],
+  "corner1": [
+   660,
+   853
+  ],
+  "heightScale": 0.267739565,
+  "zOffset": -138.0639,
+  "heightScale3D": 0.267739745,
+  "zOffset3D": -138.064
+ },
+ "Tallil": {
+  "url": "/img/maps/tallil/",
+  "corner0": [
+   -2340,
+   -2340
+  ],
+  "corner1": [
+   2340,
+   2340
+  ],
+  "heightScale": 0.152035884,
+  "zOffset": -83.457,
+  "heightScale3D": 0.148738475,
+  "zOffset3D": -81.7753
+ },
+ "Yehorivka": {
+  "url": "/img/maps/yehorivka/",
+  "corner0": [
+   -3302,
+   -3302
+  ],
+  "corner1": [
+   3048,
+   3048
+  ],
+  "heightScale": 0.485970247,
+  "zOffset": -65.4916,
+  "heightScale3D": 0.485970247,
+  "zOffset3D": -65.4916
+ },
+ "Hrodna_Border": {
+  "url": "/img/maps/MODS/SPM/hrodna/",
+  "corner0": [
+   -2016,
+   -2016
+  ],
+  "corner1": [
+   2016,
+   2016
+  ],
+  "heightScale": 0.485617783,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Chornivsk": {
+  "url": "/img/maps/MODS/SPM/chornivsk/",
+  "corner0": [
+   -1649,
+   -1547
+  ],
+  "corner1": [
+   1535,
+   1637
+  ],
+  "heightScale": 0.124958144,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "AlBasrah_legacy": {
+  "url": "/img/maps/MODS/SD/albasrah_legacy/",
+  "corner0": [
+   -1520,
+   -1520
+  ],
+  "corner1": [
+   1520,
+   1520
+  ],
+  "heightScale": 0.084748958,
+  "zOffset": -15.7523,
+  "heightScale3D": 0.043778399,
+  "zOffset3D": -10.81
+ },
+ "Bespin": {
+  "url": "/img/maps/MODS/GC/bespin/",
+  "corner0": [
+   -2031.92,
+   -2031.92
+  ],
+  "corner1": [
+   2031.92,
+   2031.92
+  ],
+  "heightScale": 4.947832833,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Coruscant": {
+  "url": "/img/maps/MODS/GC/coruscant/",
+  "corner0": [
+   -2000,
+   -2000
+  ],
+  "corner1": [
+   2000,
+   2000
+  ],
+  "heightScale": 12.178692268,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Corvette": {
+  "url": "/img/maps/MODS/GC/corvette/",
+  "corner0": [
+   -166.2,
+   -78.11
+  ],
+  "corner1": [
+   -6.65,
+   81.44
+  ],
+  "heightScale": 0.015758521,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Felucia": {
+  "url": "/img/maps/MODS/GC/felucia/",
+  "corner0": [
+   -789.93,
+   -3999.91
+  ],
+  "corner1": [
+   1876.7,
+   -1333.21
+  ],
+  "heightScale": 0.667760064,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Galban": {
+  "url": "/img/maps/MODS/GC/galban/",
+  "corner0": [
+   -1784.99,
+   -1784.97
+  ],
+  "corner1": [
+   1784.97,
+   1784.91
+  ],
+  "heightScale": 4.036845955,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Geonosis": {
+  "url": "/img/maps/MODS/GC/geonosis/",
+  "corner0": [
+   -2015.67,
+   -2015.67
+  ],
+  "corner1": [
+   2015.7,
+   2015.7
+  ],
+  "heightScale": 7.295198568,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Kashyyyk": {
+  "url": "/img/maps/MODS/GC/kashyyyk/",
+  "corner0": [
+   -2106.43,
+   -2814.39
+  ],
+  "corner1": [
+   1893.56,
+   1185.59
+  ],
+  "heightScale": 0.368167,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Kavado": {
+  "url": "/img/maps/MODS/GC/kavado/",
+  "corner0": [
+   -1072.36,
+   -2098.28
+  ],
+  "corner1": [
+   2052.09,
+   1026.17
+  ],
+  "heightScale": 1.536714457,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Mallidon": {
+  "url": "/img/maps/MODS/GC/mallidon/",
+  "corner0": [
+   -2400,
+   -2400
+  ],
+  "corner1": [
+   -400,
+   -400
+  ],
+  "heightScale": 0.754785829,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Miniosis": {
+  "url": "/img/maps/MODS/GC/miniosis/",
+  "corner0": [
+   -1020,
+   -1020
+  ],
+  "corner1": [
+   1020,
+   1020
+  ],
+  "heightScale": 0.891445085,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Morak": {
+  "url": "/img/maps/MODS/GC/morak/",
+  "corner0": [
+   -3250,
+   -3250
+  ],
+  "corner1": [
+   3250,
+   3250
+  ],
+  "heightScale": 2.244150079,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "MorakLegacy": {
+  "url": "/img/maps/MODS/GC/moraklegacy/",
+  "corner0": [
+   -2102.47,
+   -2301.85
+  ],
+  "corner1": [
+   2102.47,
+   2301.85
+  ],
+  "heightScale": 1.821209448,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Mygeeto": {
+  "url": "/img/maps/MODS/GC/mygeeto/",
+  "corner0": [
+   -2000,
+   -2000
+  ],
+  "corner1": [
+   2000,
+   2000
+  ],
+  "heightScale": 7.458831189,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "NabooPlains": {
+  "url": "/img/maps/MODS/GC/nabooplains/",
+  "corner0": [
+   -1967.98,
+   -1967.98
+  ],
+  "corner1": [
+   1968.98,
+   1968.98
+  ],
+  "heightScale": 0.355040546,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Ortoplutonia": {
+  "url": "/img/maps/MODS/GC/ortoplutonia/",
+  "corner0": [
+   -1999.95,
+   -1999.95
+  ],
+  "corner1": [
+   2000.05,
+   2000.05
+  ],
+  "heightScale": 1.211747024,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Rhenvar": {
+  "url": "/img/maps/MODS/GC/rhenvar/",
+  "corner0": [
+   -4079.85,
+   -4079.85
+  ],
+  "corner1": [
+   4053.6,
+   4053.6
+  ],
+  "heightScale": 1.200851022,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Ryloth": {
+  "url": "/img/maps/MODS/GC/ryloth/",
+  "corner0": [
+   -620,
+   -620
+  ],
+  "corner1": [
+   620,
+   620
+  ],
+  "heightScale": null,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Sesid": {
+  "url": "/img/maps/MODS/GC/sesid/",
+  "corner0": [
+   -1880,
+   -1880
+  ],
+  "corner1": [
+   1880,
+   1880
+  ],
+  "heightScale": 0.819146736,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "SesidEquator": {
+  "url": "/img/maps/MODS/GC/sesidequator/",
+  "corner0": [
+   -2400,
+   -2400
+  ],
+  "corner1": [
+   2400,
+   2400
+  ],
+  "heightScale": 1.794266345,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Sullust": {
+  "url": "/img/maps/MODS/GC/sullust/",
+  "corner0": [
+   -1078.77,
+   -1078.77
+  ],
+  "corner1": [
+   1079.56,
+   1079.56
+  ],
+  "heightScale": 7.976126518,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Tatooine": {
+  "url": "/img/maps/MODS/GC/tatooine/",
+  "corner0": [
+   -1966.2,
+   -1865.35
+  ],
+  "corner1": [
+   1579.8,
+   1680.65
+  ],
+  "heightScale": 1.187478002,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Umbara": {
+  "url": "/img/maps/MODS/GC/umbara/",
+  "corner0": [
+   -800,
+   -800
+  ],
+  "corner1": [
+   800,
+   800
+  ],
+  "heightScale": 0.210430224,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "VenatorAssault": {
+  "url": "/img/maps/MODS/GC/venator/",
+  "corner0": [
+   -400.3,
+   -399.6
+  ],
+  "corner1": [
+   399.7,
+   400.4
+  ],
+  "heightScale": 0.545954917,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "VenatorAssault2": {
+  "url": "/img/maps/MODS/GC/venator2/",
+  "corner0": [
+   -855.4,
+   -462
+  ],
+  "corner1": [
+   644.6,
+   1038
+  ],
+  "heightScale": 0.545954917,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ },
+ "Yavin4": {
+  "url": "/img/maps/MODS/GC/yavin4/",
+  "corner0": [
+   -1260.02,
+   -1260.02
+  ],
+  "corner1": [
+   1260.02,
+   1260.02
+  ],
+  "heightScale": 0.721582271,
+  "zOffset": null,
+  "heightScale3D": null,
+  "zOffset3D": null
+ }
+}

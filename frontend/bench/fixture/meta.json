@@ -1,0 +1,25 @@
+{
+  "id": "bench-fixture",
+  "filename": "bench-fixture.sqrx",
+  "sizeBytes": 49873921,
+  "ticks": 170,
+  "positionFrames": 0,
+  "totalFrames": 170,
+  "durationSec": 338,
+  "startedAtUtc": "2026-10-11T17:42:38.695+00:00",
+  "endedAtUtc": "2026-10-11T17:48:16.714+00:00",
+  "serverId": "bench",
+  "mapName": "Gorodok Invasion v2",
+  "gameMode": "Invasion",
+  "layerName": "Gorodok Invasion v2",
+  "matchId": "bench",
+  "peakPlayers": 108,
+  "recordingState": "finalized",
+  "inProgress": false,
+  "source": {
+    "note": "anonymized window for npm run bench:3d",
+    "layer": "Gorodok Invasion v2",
+    "atSec": 1160,
+    "frames": 170
+  }
+}

@@ -21,6 +21,7 @@ venv/
 
 # Node / frontend
 frontend/node_modules/
+frontend/bench/.cache/
 frontend/dist-ssr/
 node_modules/
 # NOTE: frontend/dist/ IS committed (prebuilt SPA) so the tool runs without a
@@ -29,7 +30,11 @@ node_modules/
 # Editor / OS
 .vscode/
 .idea/
-.claude/
+# Claude Code: local state + worktrees stay out; shared skills and the
+# dev-server launch config are committed.
+.claude/*
+!.claude/skills/
+!.claude/launch.json
 *.swp
 .DS_Store
 Thumbs.db

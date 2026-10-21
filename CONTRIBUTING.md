@@ -35,6 +35,64 @@ Please keep the project conventions:
   `zstandard`).
 - Add a test for any new pure-logic helper.
 
+## Web UI against real data
+
+You don't need a running agent to work on `frontend/`. The Vite dev server
+proxies `/api`, `/icons` and `/sqmaps` to `SQREADER_BACKEND`, so point it at
+the hosted site and every real recording is available with hot reload:
+
+```bash
+cd frontend
+SQREADER_BACKEND=https://squadreader.united-blueberries.de npm run dev
+# PowerShell: $env:SQREADER_BACKEND="https://squadreader.united-blueberries.de"; npm run dev
+```
+
+Pick an `id` from <https://squadreader.united-blueberries.de/api/recordings>
+(skip `inProgress: true`) and open
+`http://localhost:5173/?mode=replay&id=<id>`; add `&view=3d` for the 3D view.
+Without the variable the dev server talks to a local agent on `:8080`.
+
+Claude Code picks this up from `.claude/launch.json` (`frontend-hosted`) and
+the `frontend-live-data` skill in `.claude/skills/`, which also lists the
+dev-only debug hooks (`window.__map3d`) and known traps.
+
+## 3D view benchmark
+
+Changes to the 3D view should not make it heavier unnoticed:
+
+```bash
+cd frontend
+npm run bench:3d            # run and compare with bench/3d-baseline.json
+npm run bench:3d -- --save  # store the current numbers as the new baseline
+```
+
+It replays a fixed, anonymized recording window (`frontend/bench/fixture/`,
+rebuilt with `npm run bench:3d:fixture`) at a fixed frame through four camera
+shots (overview, low over units, ground level in a forest, 1x playback) in
+headless Chrome and reports per-frame time (GPU-synced median/p95), draw calls
+and triangles. SquadCalc's map assets are cached in `frontend/bench/.cache/`
+(git-ignored) on the first run, so later runs need no network. Draw calls and triangles are deterministic; timings only compare on
+the same GPU and wobble by about 1 ms. Exit code 1 means something got worse
+than the baseline (timings: >15% and >1 ms; counts: >5%).
+
+## Updating the SquadCalc 3D data
+
+The 3D replay view (`?view=3d`) uses SquadCalc's map calibration and its
+building/tree loaders, pinned to one upstream commit
+(`frontend/src/canvas/squadcalc/source.json`). To pick up SquadCalc changes:
+
+```bash
+cd frontend
+npm run update:squadcalc                 # latest master
+npm run update:squadcalc -- --ref <sha>  # or a specific commit
+git diff                                 # what moved upstream
+npm test
+```
+
+It prints added/removed/changed maps and any map squadreader knows that
+SquadCalc has no 3D data for. Heightmaps, basemaps and prop/tree binaries are
+not copied; the view loads them from squadcalc.app at runtime.
+
 ## Sign off your commits (DCO + licence grant)
 
 Contributions are accepted under the [Developer Certificate of

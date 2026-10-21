@@ -29,6 +29,21 @@ respective owners and are included only so the tool interoperates with Squad:
                 squad-pool metadata derived from public Squad data via
                 squadreplay.com and squadcalc.app.
 
+  frontend/src/canvas/squadcalc/, frontend/src/data/squadcalc3d.json
+                Building/tree loaders and the map/heightmap calibration table
+                (extracted from src/data/maps.js) from SquadCalc
+                (https://github.com/sh4rkman/SquadCalc), (c) Maxime "sharkman"
+                Boussard, MIT License (Non-Commercial): NOT covered by the
+                AGPL above, and not to be used for any commercial purpose as
+                that licence defines it. The 3D view loads SquadCalc's
+                heightmaps, basemaps and prop data from squadcalc.app at
+                runtime; those are derived from the Squad SDK (property of
+                Offworld Industries) and are not redistributed here.
+
+  frontend/src/canvas/sky/sky.hdr
+                "Kloofendal 43d Clear (Pure Sky)" HDRI by Poly Haven
+                (https://polyhaven.com/a/kloofendal_43d_clear_puresky), CC0.
+
 "Squad" and its assets are trademarks/property of Offworld Industries. This
 project is not affiliated with or endorsed by Offworld Industries. If you are a
 rights holder and want any bundled asset removed, please open an issue.

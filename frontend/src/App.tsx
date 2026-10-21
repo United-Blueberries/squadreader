@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { MapCanvas } from "./canvas/MapCanvas";
+// three.js stays out of the main bundle until someone opens the 3D view.
+const Map3D = lazy(() => import("./canvas/Map3D").then((m) => ({ default: m.Map3D })));
 import type { Hit } from "./canvas/hitTest";
 import { TopBar } from "./ui/TopBar";
 import { TeamBar } from "./ui/TeamBar";
@@ -71,6 +73,7 @@ export default function App() {
   useKillFeed();       // live: incremental diff
   useReplayKillFeed(); // replay: playhead filter over the pre-computed timeline
 
+  const view3d = useViewerStore((s) => s.view3d);
   const [tooltip, setTooltip] = useState<{ hit: Hit | null; x: number; y: number }>(
     { hit: null, x: 0, y: 0 });
   const selectedVehicleId    = useViewerStore((s) => s.selectedVehicleId);
@@ -183,7 +186,11 @@ export default function App() {
         <Home />
       ) : (
         <div id="stage">
-          <MapCanvas onHover={onHover} onLeave={onLeave} onClick={onClick} />
+          {view3d
+            ? <Suspense fallback={null}>
+                <Map3D onHover={onHover} onLeave={onLeave} onClick={onClick} />
+              </Suspense>
+            : <MapCanvas onHover={onHover} onLeave={onLeave} onClick={onClick} />}
           <TopBar />
           <TeamBar />
           <PlayerSearch />

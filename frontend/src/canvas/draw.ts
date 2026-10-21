@@ -680,7 +680,7 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number,
 // source-in tint would haze the interior — same problem we hit with
 // vehicle outlines). FOBs get a slightly thicker bezel as a hierarchy
 // cue: they're the key landmark on the map.
-function drawDeployableBadge(ctx: CanvasRenderingContext2D,
+export function drawDeployableBadge(ctx: CanvasRenderingContext2D,
                              cx: number, cy: number,
                              iconSize: number, teamCol: string,
                              img: CachedImageLike,
@@ -958,7 +958,7 @@ function drawVehicleBadge(ctx: CanvasRenderingContext2D,
 
 // A squad leader — the role FName carries the `_SL_` token (crewman / pilot
 // SL variants included). Mirrors the SL match in icons.ts:roleIconUrl.
-function isSquadLeader(p: { roleId: string | null }): boolean {
+export function isSquadLeader(p: { roleId: string | null }): boolean {
   const rid = (p.roleId ?? "").toLowerCase();
   return rid.includes("_sl_") || rid.endsWith("_sl");
 }
@@ -1003,7 +1003,7 @@ function drawNumberBadge(ctx: CanvasRenderingContext2D, cx: number, topY: number
 // A vehicle carries no squad of its own, so its "number" is derived from the
 // crew: the driver's squad (seat idx 0), falling back to the lowest-index
 // crewed seat. Returns null for an empty vehicle or an unsquadded crew.
-function vehicleSquadNumber(v: Vehicle,
+export function vehicleSquadNumber(v: Vehicle,
                            eosSquad: Map<string, number>): number | null {
   const seats = [...(v.seats ?? [])].sort((a, b) => a.idx - b.idx);
   for (const seat of seats) {
@@ -1750,7 +1750,7 @@ type CachedImageLike = HTMLImageElement;
 // exact revive-waiting bit); a soldier that is only `bleeding` is still up and
 // moving, so it stays a normal pin. Falls back to the health<=0 correlate for
 // legacy snapshots/replays that don't carry lifeState.
-function isDowned(s: { health: number | null;
+export function isDowned(s: { health: number | null;
                        lifeState?: "healthy" | "bleeding" | "incapacitated" | null }):
                        boolean {
   if (s.lifeState != null) return s.lifeState === "incapacitated";
@@ -1910,35 +1910,33 @@ function drawProjectiles(ctx: CanvasRenderingContext2D, snap: Snapshot,
 // SL + FT variants); spotted/option/POI/director markers stay clean.
 // If the placer can't be resolved (offline, on a different map, etc.)
 // we silently skip — no guess line.
+/** The living player who placed an action marker, for the line drawn from
+ *  them to it (2D and 3D). Found by team + squad + fireteam role, the same
+ *  logic the tooltip uses: SL = (idx 0, pos 0); FTL = (idx N, pos 0). Null
+ *  while the placer is dead or their soldier record is stale; the line comes
+ *  back on its own after respawn, from the new position. */
+export function actionMarkerPlacer(m: Marker, players: Player[]): Player | null {
+  if (!m.position || !m.type || !/^BP_MapMarker_Action_/i.test(m.type)) return null;
+  if (m.team == null || m.squad == null) return null;
+  const wantIdx = m.fireTeamId === -1 || m.fireTeamId == null ? 0 : m.fireTeamId;
+  const placer = players.find((p) => {
+    if (p.teamId !== m.team || p.squadId !== m.squad) return false;
+    const s = p.stats ?? {};
+    return s.fireTeamIndex === wantIdx && s.fireTeamPosition === 0;
+  });
+  const so = placer?.soldier;
+  if (!so?.position || so.stale || (so.health ?? 0) <= 0) return null;
+  return placer!;
+}
+
 function drawActionMarkerLines(ctx: CanvasRenderingContext2D,
                                 snap: Snapshot,
                                 view: ViewState, cs: CanvasSize) {
   const players = snap.players ?? [];
   if (!players.length) return;
   for (const m of snap.markers ?? []) {
-    if (!m.position || !m.type) continue;
-    if (!/^BP_MapMarker_Action_/i.test(m.type)) continue;
-    if (m.team == null || m.squad == null) continue;
-    const ft = m.fireTeamId;
-    // Find the placer by team + squad + fireteam role (same logic the
-    // tooltip uses). SL = (idx 0, pos 0); FTL = (idx N, pos 0).
-    const candidates = players.filter(
-      (p) => p.teamId === m.team && p.squadId === m.squad
-    );
-    if (!candidates.length) continue;
-    const wantIdx = ft === -1 || ft == null ? 0 : ft;
-    const placer = candidates.find((p) => {
-      const s = p.stats ?? {};
-      return s.fireTeamIndex === wantIdx && s.fireTeamPosition === 0;
-    });
-    if (!placer || !placer.soldier || !placer.soldier.position) continue;
-    // Hide the line while the placer is dead (or their soldier record
-    // went stale). The line reappears automatically the next tick after
-    // respawn — `placer.soldier.position` updates to the new spawn
-    // location, so no extra wiring needed.
-    if (placer.soldier.stale) continue;
-    if ((placer.soldier.health ?? 0) <= 0) continue;
-    const sp = placer.soldier.position;
+    const sp = actionMarkerPlacer(m, players)?.soldier?.position;
+    if (!sp || !m.position) continue;
     const [ax, ay] = worldToScreen(view, cs, sp.x, sp.y);
     const [bx, by] = worldToScreen(view, cs, m.position.x, m.position.y);
     const col = teamColor(m.team);
