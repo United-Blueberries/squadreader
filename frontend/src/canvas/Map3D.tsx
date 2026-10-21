@@ -805,7 +805,7 @@ function markerTexture(m: Marker, color: string): THREE.Texture | null {
   return t;
 }
 
-const TEX_KEY = "sqr.map3d.texture", FPS_KEY = "sqr.map3d.fps";
+const TEX_KEY = "sqr.map3d.texture", FPS_KEY = "sqr.map3d.fps", SENS_KEY = "sqr.map3d.flySens";
 const pref = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
 const savePref = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
 
@@ -829,6 +829,10 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
   const fpsRef = useRef<HTMLDivElement | null>(null);
   const showFpsRef = useRef(showFps);
   showFpsRef.current = showFps;
+  // Fly-mode mouse sensitivity, radians per pixel ×1000. Drag-look keeps 3.
+  const [flySens, setFlySens] = useState(() => Number(pref(SENS_KEY, "1.5")) || 1.5);
+  const flySensRef = useRef(flySens);
+  flySensRef.current = flySens;
   const toggleHelp = (open: boolean) => {
     setHelp(open);
     try { localStorage.setItem(HELP_KEY, open ? "0" : "1"); } catch { /* private mode */ }
@@ -1113,8 +1117,9 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
       if (!flying()) Promise.resolve(canvas.requestPointerLock()).catch(() => {});
     };
     const look = (e: PointerEvent) => {
-      yaw -= e.movementX * 0.003;
-      pitch = Math.max(-1.55, Math.min(1.2, pitch - e.movementY * 0.003));
+      const k = flying() ? flySensRef.current / 1000 : 0.003;
+      yaw -= e.movementX * k;
+      pitch = Math.max(-1.55, Math.min(1.2, pitch - e.movementY * k));
     };
     const onPointerDown = (e: PointerEvent) => {
       if (flying()) return;
@@ -1878,6 +1883,7 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
     savePref(FPS_KEY, showFps ? "1" : "0");
     if (!showFps && fpsRef.current) fpsRef.current.textContent = "";
   }, [showFps]);
+  useEffect(() => savePref(SENS_KEY, String(flySens)), [flySens]);
 
   return (
     <div ref={hostRef} style={{ position: "absolute", inset: 0 }}>
@@ -1918,6 +1924,11 @@ export function Map3D({ onHover, onLeave, onClick }: Props) {
                 <select value={texture} onChange={(e) => setTexture(e.target.value)}>
                   {TEXTURES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
+              </label>
+              <label title="Mouse sensitivity in fly mode">
+                <span>Fly look</span>
+                <input type="range" min={0.3} max={4} step={0.1} value={flySens}
+                       onChange={(e) => setFlySens(Number(e.target.value))} />
               </label>
               <label>
                 <input type="checkbox" checked={showFps} onChange={(e) => setShowFps(e.target.checked)} />

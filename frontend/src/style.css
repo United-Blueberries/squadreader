@@ -3187,7 +3187,8 @@ html, body, #root {
   margin-top: 4px; padding: 8px 10px; border-top: 1px solid var(--border);
 }
 .m3d-settings label { display: flex; align-items: center; gap: 8px; color: var(--ink); cursor: pointer; }
-.m3d-settings label > span:first-child { width: 36px; color: var(--ink-mute); }
+.m3d-settings label > span:first-child { width: 52px; color: var(--ink-mute); }
+.m3d-settings input[type="range"] { flex: 1; min-width: 0; }
 .m3d-settings select {
   flex: 1; font: inherit; color: var(--ink); background: var(--surface-2);
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 2px 4px;
