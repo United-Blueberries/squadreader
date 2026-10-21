@@ -40,6 +40,7 @@
     "winner, tickets, duration, the minimap and a link to its replay. Same",
     "credential rules as alert_webhook. server_url is the public root of this",
     "sqreader site; the replay link is <server_url>/?mode=replay&id=<recording>.",
+    "Left null, links go to squadreader.com/replay/?mode=replay&id=<match id>.",
     "Needs --stats-db; the map image needs --sqmaps-dir (or ./sqmaps)."
   ],
   "round_webhook": null,

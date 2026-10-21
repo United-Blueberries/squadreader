@@ -344,6 +344,21 @@ def test_factions_read_like_the_viewer_shows_them():
     assert "RGF · Motorized" in _fields(e)
 
 
+def test_without_server_url_the_link_goes_to_squadreader_com(tmp_path, monkeypatch):
+    sent = {}
+    monkeypatch.setattr("sqreader.stats.match_detail", lambda db, mid: _match())
+    monkeypatch.setattr(notify, "_post",
+                        lambda url, data, ctype, stop, t: sent.update(data=data))
+    n = notify.RoundNotifier("https://hook", db_path=tmp_path / "x.db")
+    try:
+        n.send("a0faf3a3-c368-47fb-8291-94178c907787")
+    finally:
+        n.close()
+    embed = json.loads(sent["data"])["embeds"][0]
+    assert embed["url"] == ("https://squadreader.com/replay/?mode=replay"
+                            "&id=a0faf3a3-c368-47fb-8291-94178c907787")
+
+
 def test_seed_rounds_are_not_announced():
     assert notify.is_seed(_match(game_mode="Seed"))
     assert notify.is_seed(_match(game_mode=None,

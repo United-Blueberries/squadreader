@@ -399,6 +399,10 @@ def _hms(sec: Any) -> Optional[str]:
     return f"{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}"
 
 
+#: Where round links point when no `server_url` is configured.
+DEFAULT_SERVER_URL = "https://squadreader.com"
+
+
 def round_url(server_url: Optional[str], rec_id: Optional[str]) -> Optional[str]:
     """The replay page for one recording. The viewer is looked up by the
     recording's filename stem, not the match id."""
@@ -557,7 +561,12 @@ class RoundNotifier:
         # vanished match is not a result worth announcing.
         if not m or m.get("winner_team") is None or is_seed(m):
             return
-        url = round_url(self._server_url, self._recording_id(match_id))
+        # A self-hosted viewer opens recordings by filename; squadreader.com
+        # opens them by match id under /replay/.
+        if self._server_url:
+            url = round_url(self._server_url, self._recording_id(match_id))
+        else:
+            url = replay_url(DEFAULT_SERVER_URL, match_id)
         map_file = self._map_file(m.get("layer_name"))
         embed = build_round_embed(m, url=url, has_map=map_file is not None,
                                   server_label=self._label)

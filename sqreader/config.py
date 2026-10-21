@@ -106,7 +106,7 @@ DEFAULTS: dict[str, Any] = {
     "round_webhook": None,
     # Public root of this sqreader site, e.g. "https://replays.example.com".
     # Round posts link to `<server_url>/?mode=replay&id=<recording>`; without
-    # it they arrive with no link.
+    # it they link to squadreader.com/replay/?mode=replay&id=<match id>.
     "server_url": None,
 }
 
