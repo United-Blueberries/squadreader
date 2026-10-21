@@ -1,7 +1,13 @@
 // Standalone unit test for the 3D vehicle/deployable classes. Run by
 // scripts/run-tests.mjs (every *.test.mts under src/).
-import catalog from "../../../data/static/vehicle_factions.json" with { type: "json" };
+import { readFileSync } from "node:fs";
 import { deployKind3d, vehicleKind3d } from "./kind3d.ts";
+
+// Read at run time, not imported: the Docker UI stage type-checks src/ with
+// only frontend/ copied in, so a static import of the repo's data/ fails tsc.
+// Path is from the bundle the runner writes to node_modules/.cache/tests/.
+const catalog: Record<string, unknown> = JSON.parse(readFileSync(
+  new URL("../../../../data/static/vehicle_factions.json", import.meta.url), "utf8"));
 
 let passed = 0, failed = 0;
 function ok(cond: any, msg: string) {
